@@ -8,7 +8,10 @@ package entitiy;
  *
  * @author asus-z
  */
-public class Facility {
+
+import java.io.Serializable;
+
+public class Facility implements Serializable {
     private String id;
     private String name;
     private String location;

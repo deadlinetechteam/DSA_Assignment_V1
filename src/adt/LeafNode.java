@@ -22,8 +22,6 @@ class LeafNode<K extends Comparable<K>, V> extends Node<K, V> {
         this.prev = null;
     }
     
-    
-    
     protected void insertAt(int pos, K key, V value) {
         for (int i = currentKeyCount; i > pos; i--) {
             keys[i] = keys[i - 1];
@@ -32,7 +30,7 @@ class LeafNode<K extends Comparable<K>, V> extends Node<K, V> {
         keys[pos] = key;
         values[pos] = value;
         currentKeyCount++;
-    }
+    }   
 
     protected void removeAt(int idx) {
         for (int i = idx; i < currentKeyCount - 1; i++) {
@@ -52,7 +50,7 @@ class LeafNode<K extends Comparable<K>, V> extends Node<K, V> {
             this.values[this.currentKeyCount] = r.values[i];
             this.currentKeyCount++;
         }
-        // 更新链表指针，跳过被合并掉的右兄弟
+        // Update the linked list pointer, skipping the right sibling that was merged.
         this.next = r.next;
     }
 }

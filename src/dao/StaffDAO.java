@@ -42,18 +42,18 @@ public class StaffDAO {
             return new BPlusTree.SimpleList<>();
         }
     }
-
-    public void add(Staff s) {
-        tree.create(s.getId(), s);
-        saveToFile(tree.sort());
-    }
-
-    public Staff find(String id) {
-        return tree.search(id);
-    }
-    
-      public BPlusTree.SimpleList<Staff> getAll() {
-        return tree.sort();
-    }
+//
+//    public void add(Staff s) {
+//        tree.create(s.getId(), s);
+//        saveToFile(tree.sort());
+//    }
+//
+//    public Staff find(String id) {
+//        return tree.search(id);
+//    }
+//    
+//      public BPlusTree.SimpleList<Staff> getAll() {
+//        return tree.sort();
+//    }
 
 }

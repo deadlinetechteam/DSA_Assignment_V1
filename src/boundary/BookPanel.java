@@ -49,7 +49,7 @@ public class BookPanel extends JPanel {
             int r = bookTable.getSelectedRow();
             if (r != -1) {
                 String id = (String) bookTable.getValueAt(r, 0);
-                showEntryDialog(bookManager.getBook(id));
+                showEntryDialog(bookManager.readBook(id));
             } else {
                 JOptionPane.showMessageDialog(this, "Select a book to update!");
             }
@@ -127,7 +127,7 @@ public class BookPanel extends JPanel {
                     tfs[9].getText().trim()
             );
 
-            bookManager.saveBook(b); // 存入 B+ 树并写入磁盘
+            bookManager.createBook(b); // 存入 B+ 树并写入磁盘
             refreshData();
         }
     }

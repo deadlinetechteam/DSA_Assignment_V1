@@ -128,7 +128,7 @@ public class StaffPanel extends JPanel {
                     tfs[3].getText().trim(), tfs[4].getText().trim(), tfs[5].getText().trim(),
                     tfs[6].getText().trim()
             );
-            staffManager.saveStaff(s); // 调用 Control 层持久化
+//            staffManager.saveStaff(s); // 调用 Control 层持久化
             refreshData();
         }
     }

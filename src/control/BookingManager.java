@@ -18,6 +18,8 @@ import adt.BPlusTree;
 
 
 public class BookingManager {
+    private final BPlusTree<String,BookingRecord> mainBookingTree=new BPlusTree<>(4);
+    private final BPlusTree<String,Facility> mainFacilityTree=new BPlusTree<>(4);
     private BookingDAO bookingDAO = new BookingDAO();
     private FacilityDAO facilityDAO = new FacilityDAO();
 
@@ -29,7 +31,7 @@ public class BookingManager {
 //     */
     public boolean makeBooking(String userId, String facilityId, String date, String start, String end) {
         // 从 DAO 获取设施实体
-        Facility f = facilityDAO.findById(facilityId);
+        Facility f = mainFacilityTree.read(facilityId);
         
         // 业务规则校验：设施必须存在且状态为 Available
         if (f == null || !f.getStatus().equalsIgnoreCase("Available")) {
@@ -38,7 +40,7 @@ public class BookingManager {
 
         // 1. 更新设施状态并保存（触发文件更新）
         f.setStatus("Reserved");
-        facilityDAO.add(f);
+        mainFacilityTree.create(f.getId(),f);
 
         // 2. 生成唯一的预约 ID 并创建记录
         String bookingId = "BK" + System.currentTimeMillis();
@@ -47,7 +49,7 @@ public class BookingManager {
         );
         
         // 3. 通过 DAO 存入 B+ 树并写入 .dat 文件
-        bookingDAO.add(record);
+        mainBookingTree.create(record.getId(),record);
         return true;
     }
 
@@ -57,20 +59,20 @@ public class BookingManager {
 //     * 2. 从 B+ 树中删除预约记录（触发平衡算法）
 //     */
     public boolean cancelBooking(String bookingId) {
-        BookingRecord record = bookingDAO.findById(bookingId);
+        BookingRecord record = mainBookingTree.read(bookingId);
         if (record == null) {
             return false;
         }
 
         // 恢复设施可用性
-        Facility f = facilityDAO.findById(record.getFacilityId());
+        Facility f = mainFacilityTree.read(record.getFacilityId());
         if (f != null) {
             f.setStatus("Available");
-            facilityDAO.add(f);
+            mainFacilityTree.create(f.getId(),f);
         }
 
         // 执行 B+ 树删除操作
-        bookingDAO.delete(bookingId);
+        mainBookingTree.delete(bookingId);
         return true;
     }
 
@@ -78,6 +80,6 @@ public class BookingManager {
 //     * 获取所有预约记录用于 GUI 展示
 //     */
     public BPlusTree.SimpleList<BookingRecord> getAllBookings() {
-        return bookingDAO.getAll();
+        return mainBookingTree.sort();
     }
 }

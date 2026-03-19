@@ -28,17 +28,8 @@ class InternalNode<K extends Comparable<K>, V> extends Node<K, V> {
         currentKeyCount++;
     }
 
-    public int indexOfChild(Node<K, V> node) {
-        for (int i = 0; i < currentKeyCount; i++) {
-            if (children[i] == node) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
     protected void insertKeyAndChildAtFirst(K key, Node<K, V> leftChild) {
-        // 移动所有的 key 和 children 给第一个位置腾地
+        // Move all the keys and children to make room for the first position.
         for (int i = currentKeyCount; i > 0; i--) {
             keys[i] = keys[i - 1];
         }
@@ -53,25 +44,19 @@ class InternalNode<K extends Comparable<K>, V> extends Node<K, V> {
 
     protected void removeFirst() {
         if (currentKeyCount > 0) {
-            // 1. 将所有 Key 向左移动一位
             for (int i = 0; i < currentKeyCount - 1; i++) {
                 keys[i] = keys[i + 1];
             }
-            keys[currentKeyCount - 1] = null; // 清除原本最后一位的残余
-
-            // 2. 将所有 Children 指针向左移动一位
-            // 注意：子节点数量是 currentKeyCount + 1，所以移动到 currentKeyCount
+            keys[currentKeyCount - 1] = null; 
             for (int i = 0; i < currentKeyCount; i++) {
                 children[i] = children[i + 1];
             }
-            children[currentKeyCount] = null; // 清除原本最后一位的残余
-
-            // 3. 计数减一
+            children[currentKeyCount] = null;
             currentKeyCount--;
         }
     }
 
-    // 移除最后一个 Key 和对应的子节点（用于被借调时）
+    // Remove the last key and its corresponding child nodes (for use when the key is seconded).
     protected void removeLast() {
         if (currentKeyCount > 0) {
             keys[currentKeyCount - 1] = null;
@@ -80,37 +65,46 @@ class InternalNode<K extends Comparable<K>, V> extends Node<K, V> {
         }
     }
 
-    @Override
-    public void combineWith(Node<K, V> right, K parentKey) {
-        InternalNode<K, V> r = (InternalNode<K, V>) right;
-        // 1. 先把父节点下移的 key 放进来
-        this.keys[this.currentKeyCount] = parentKey;
-        this.currentKeyCount++;
-
-        // 2. 把右兄弟的所有 keys 和 children 搬过来
-        for (int i = 0; i < r.currentKeyCount; i++) {
-            this.keys[this.currentKeyCount] = r.keys[i];
-            this.children[this.currentKeyCount] = r.children[i];
-            this.children[this.currentKeyCount].parent = this;
-            this.currentKeyCount++;
-        }
-        // 搬最后一个 child
-        this.children[this.currentKeyCount] = r.children[r.currentKeyCount];
-        this.children[this.currentKeyCount].parent = this;
-    }
-
-    // 移除指定的 key 和它右侧的 child (用于父节点删除索引)
+    // Remove the specified key and its child nodes to the right (used for deleting indexes on parent nodes).
     public void removeKeyAndChildAt(int index) {
-        // 移除 key
+        // remove key
         for (int i = index; i < currentKeyCount - 1; i++) {
             keys[i] = keys[i + 1];
         }
-        // 移除指向右兄弟的 child 指针
+        // Remove the child pointer that points to the right sibling.
         for (int i = index + 1; i < currentKeyCount; i++) {
             children[i] = children[i + 1];
         }
         keys[currentKeyCount - 1] = null;
         children[currentKeyCount] = null;
         currentKeyCount--;
+    }
+
+    @Override
+    public void combineWith(Node<K, V> right, K parentKey) {
+        InternalNode<K, V> r = (InternalNode<K, V>) right;
+        // 1. First, put in the key that was moved down from the parent node.
+        this.keys[this.currentKeyCount] = parentKey;
+        this.currentKeyCount++;
+
+        // 2. Move all the keys and children of the right brother over.
+        for (int i = 0; i < r.currentKeyCount; i++) {
+            this.keys[this.currentKeyCount] = r.keys[i];
+            this.children[this.currentKeyCount] = r.children[i];
+            this.children[this.currentKeyCount].parent = this;
+            this.currentKeyCount++;
+        }
+        // Move the last child
+        this.children[this.currentKeyCount] = r.children[r.currentKeyCount];
+        this.children[this.currentKeyCount].parent = this;
+    }
+
+    public int indexOfChild(Node<K, V> node) {
+        for (int i = 0; i <= currentKeyCount; i++) {
+            if (children[i] == node) {
+                return i;
+            }
+        }
+        return -1;
     }
 }

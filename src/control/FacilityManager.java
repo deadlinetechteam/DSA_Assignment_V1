@@ -16,12 +16,32 @@ import entitiy.BookingRecord;
 import adt.BPlusTree;
 
 public class FacilityManager {
+    private final BPlusTree<String,Facility> mainFacilityTree=new BPlusTree<>(4);
+      private final BPlusTree<String,BookingRecord> mainBookingRecordTree=new BPlusTree<>(4);
     private FacilityDAO facilityDAO = new FacilityDAO();
     private BookingDAO bookingDAO = new BookingDAO();
 
-    // 预约设施
+     public void addFacility(Facility newFacility) {
+        mainFacilityTree.create(newFacility.getId(),newFacility); 
+    }
+
+    // 根据ID查询
+    public Facility readFacility(String id) {
+        return mainFacilityTree.read(id);
+    }
+    
+    // 更新书籍信息
+    public void updateBook(Facility UpdatedFacility) {
+        mainFacilityTree.update(UpdatedFacility.getId(),UpdatedFacility);
+        
+    }
+
+     public void deleteFacility(String id) {
+        mainFacilityTree.delete(id);
+    }
+     
     public boolean makeBooking(String userId, String facilityId, String date, String start, String end) {
-        Facility f = facilityDAO.findById(facilityId);
+        Facility f = mainFacilityTree.read(facilityId);
         
         if (f == null || !f.getStatus().equalsIgnoreCase("Available")) {
             return false;
@@ -29,20 +49,18 @@ public class FacilityManager {
 
         // 修改设施状态
         f.setStatus("Reserved");
-        facilityDAO.add(f);
+        mainFacilityTree.create(f.getId(),f);
 
         // 储存预约单
         String bid = "BK" + System.currentTimeMillis();
         BookingRecord br = new BookingRecord(bid, userId, facilityId, date, start, end, "Confirmed");
-        bookingDAO.add(br);
+        mainBookingRecordTree.create(br.getId(),br);
         return true;
     }
 
-    public void deleteFacility(String id) {
-        facilityDAO.delete(id);
-    }
+   
 
     public BPlusTree.SimpleList<Facility> getAllFacilities() {
-        return facilityDAO.getAll();
+        return mainFacilityTree.sort();
     }
 }

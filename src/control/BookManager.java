@@ -9,35 +9,36 @@ package control;
  * @author asus-z
  */
 
-import dao.BookDAO;
+
 import entitiy.Book;
 import adt.BPlusTree;
 
 public class BookManager {
-    private BookDAO bookDAO = new BookDAO();
-
+    private final BPlusTree<String,Book> mainTree=new BPlusTree<>(4);
     // 入库新书
-    public void addBook(Book book) {
-        bookDAO.addOrUpdate(book);
-    }
-
-    // 更新书籍信息
-    public void updateBook(Book book) {
-        bookDAO.addOrUpdate(book);
-    }
-
-    // 报废书籍 (触发 B+ 树删除逻辑)
-    public void removeBook(String id) {
-        bookDAO.delete(id);
+    
+    public void createBook(Book newBook) {
+        mainTree.create(newBook.getId(),newBook); 
     }
 
     // 根据ID查询
-    public Book findBook(String id) {
-        return bookDAO.find(id);
+    public Book readBook(String id) {
+        return mainTree.read(id);
+    }
+    
+    // 更新书籍信息
+    public void updateBook(Book UpdatedBook) {
+        mainTree.update(UpdatedBook.getId(),UpdatedBook);
+        
+    }
+
+    // 报废书籍 (触发 B+ 树删除逻辑)
+    public void deleteBook(String id) {
+        mainTree.delete(id);
     }
 
     // 获取所有书籍 (用于 GUI 表格刷新)
     public BPlusTree.SimpleList<Book> getAllBooks() {
-        return bookDAO.getAll();
+        return mainTree.sort();
     }
 }

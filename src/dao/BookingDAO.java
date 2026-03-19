@@ -44,22 +44,22 @@ public class BookingDAO {
             return new BPlusTree.SimpleList<>();
         }
     }
-
-    public void add(BookingRecord r) {
-        tree.create(r.getId(), r);
-        saveToFile(tree.sort());
-    }
-
-    public void delete(String id) {
-        tree.delete(id);
-        saveToFile(tree.sort());
-    }
-
-    public BookingRecord findById(String id) {
-        return tree.search(id);
-    }
-
-    public BPlusTree.SimpleList<BookingRecord> getAll() {
-        return tree.sort();
-    }
+//
+//    public void add(BookingRecord r) {
+//        tree.create(r.getId(), r);
+//        saveToFile(tree.sort());
+//    }
+//
+//    public void delete(String id) {
+//        tree.delete(id);
+//        saveToFile(tree.sort());
+//    }
+//
+//    public BookingRecord findById(String id) {
+//        return tree.search(id);
+//    }
+//
+//    public BPlusTree.SimpleList<BookingRecord> getAll() {
+//        return tree.sort();
+//    }
 }

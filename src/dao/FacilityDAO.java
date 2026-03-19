@@ -48,22 +48,22 @@ public class FacilityDAO {
         return list;
     }
 
-    // 提供给 Control 层的操作接口
-    public void add(Facility f) {
-        tree.create(f.getId(), f);
-        saveToFile(tree.sort());
-    }
-
-    public void delete(String id) {
-        tree.delete(id);
-        saveToFile(tree.sort());
-    }
-
-    public Facility findById(String id) {
-        return tree.search(id);
-    }
-
-    public BPlusTree.SimpleList<Facility> getAll() {
-        return tree.sort();
-    }
+//    // 提供给 Control 层的操作接口
+//    public void add(Facility f) {
+//        tree.create(f.getId(), f);
+//        saveToFile(tree.sort());
+//    }
+//
+//    public void delete(String id) {
+//        tree.delete(id);
+//        saveToFile(tree.sort());
+//    }
+//
+//    public Facility findById(String id) {
+//        return tree.search(id);
+//    }
+//
+//    public BPlusTree.SimpleList<Facility> getAll() {
+//        return tree.sort();
+//    }
 }

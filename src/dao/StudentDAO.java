@@ -44,23 +44,23 @@ public class StudentDAO {
             return new BPlusTree.SimpleList<>();
         }
     }
-
-    public void add(Student s) {
-        tree.create(s.getId(), s);
-        saveToFile(tree.sort());
-    }
-
-    public Student find(String id) {
-        return tree.search(id);
-    }
-
-    public void delete(Student s) {
-        tree.delete(s.getId());
-        saveToFile(tree.sort());
-    }
-
-    public BPlusTree.SimpleList<Student> getAll() {
-        return tree.sort();
-    }
+//
+//    public void add(Student s) {
+//        tree.create(s.getId(), s);
+//        saveToFile(tree.sort());
+//    }
+//
+//    public Student find(String id) {
+//        return tree.search(id);
+//    }
+//
+//    public void delete(Student s) {
+//        tree.delete(s.getId());
+//        saveToFile(tree.sort());
+//    }
+//
+//    public BPlusTree.SimpleList<Student> getAll() {
+//        return tree.sort();
+//    }
 
 }

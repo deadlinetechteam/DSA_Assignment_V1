@@ -19,27 +19,32 @@ public class DSA_Assignment_V1 {
      */
     public static void main(String[] args) {
         
-        BPlusTree<Integer, String> tree = new BPlusTree<>(4);
+        BPlusTree<Integer, String> tree = new BPlusTree<>(3);
 
         // --- CREATE (Insert) ---
         System.out.println("Inserting data...");
-        for (int i=1;i<=100 ;i+=1){
+        for (int i=1;i<100 ;i+=1){
         tree.create(i, "User_"+i);
         
         }
         tree.create(2,"test");
         // --- READ (Search) ---
-        String result = tree.search(99);
+        String result = tree.read(99);
         System.out.println("Search for key 15: " + result); // Output: User_15
 
         // --- UPDATE ---
         // Inserting an existing key replaces the value
         tree.create(15, "Updated_User_15");
-        System.out.println("Updated key 15: " + tree.search(15));
+        System.out.println("Updated key 15: " + tree.read(15));
 
         // --- DELETE ---
-        tree.delete(10);
-        System.out.println("Key 10 deleted. Search result: " + tree.search(10));
+         for (int i=1;i<9 ;i+=1){
+        tree.delete(i);
+        
+        }
+        tree.delete(36);
+        System.out.println(tree.read(37));
+        System.out.println("Key 10 deleted. Search result: " + tree.read(10));
 
         // --- RANGE QUERY (Order) ---
         System.out.println("Range Search (Keys 5 to 25):");

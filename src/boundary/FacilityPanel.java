@@ -52,7 +52,7 @@ public class FacilityPanel extends JPanel {
                 String id = (String) facilityTable.getValueAt(r, 0);
                 String newStatus = JOptionPane.showInputDialog(this, "Enter new status (Available/Maintenance):");
                 if (newStatus != null && !newStatus.isEmpty()) {
-                    Facility f = facilityManager.getFacilities().get(r); // 简化获取方式
+                    Facility f = facilityManager.readFacility(id);//.get(r); // 简化获取方式
                     f.setStatus(newStatus);
                     facilityManager.addFacility(f);
                     refreshData();
@@ -75,7 +75,7 @@ public class FacilityPanel extends JPanel {
     public void refreshData() {
         facilityModel.setRowCount(0);
         // 从 Manager 获取 B+ 树中的所有设施
-        BPlusTree.SimpleList<Facility> fList = facilityManager.getFacilities();
+        BPlusTree.SimpleList<Facility> fList = facilityManager.getAllFacilities();
 
         for (int i = 0; i < fList.size(); i++) {
             Facility f = fList.get(i);
@@ -97,7 +97,7 @@ public class FacilityPanel extends JPanel {
         int confirm = JOptionPane.showConfirmDialog(this, "Delete Facility " + id + "?", "Confirm", JOptionPane.YES_NO_OPTION);
 
         if (confirm == JOptionPane.YES_OPTION) {
-            facilityManager.removeFacility(id); // 触发 B+ 树删除平衡逻辑
+            facilityManager.deleteFacility(id); // 触发 B+ 树删除平衡逻辑
             refreshData();
         }
     }

@@ -14,18 +14,35 @@ import adt.BPlusTree;
 
 public class StaffManager {
 
+    private final BPlusTree<String, Staff> mainTree = new BPlusTree<>(4);
     private StaffDAO staffDAO = new StaffDAO();
 
-    public boolean authenticate(String id, String password) {
-        Staff s = staffDAO.find(id);
-        return s != null && s.getPassword().equals(password);
+    public void createStaff(Staff newStaff) {
+        mainTree.create(newStaff.getId(), newStaff);
+    }
+
+    public Staff readStaff(String id) {
+        return mainTree.read(id);
     }
 
     public void updateStaff(Staff s) {
-        staffDAO.add(s);
+        mainTree.update(s.getId(), s);
     }
 
-    public BPlusTree.SimpleList<Staff> getAllStudents() {
-        return staffDAO.getAll(); // DAO 内部执行 tree.sort()
+    public void deleteStaff(String s) {
+        mainTree.delete(s); // DAO 内部执行 tree.delete (触发 B+ 树平衡)
+    }
+
+    public void saveStaff(Staff s) {
+        mainTree.create(s.getId(), s); // DAO 内部会执行 tree.create 并 saveToFile
+    }
+
+    public boolean authenticate(String id, String password) {
+        Staff s = mainTree.read(id);
+        return s != null && s.getPassword().equals(password);
+    }
+
+    public BPlusTree.SimpleList<Staff> getAllStaffs() {
+        return mainTree.sort(); // DAO 内部执行 tree.sort()
     }
 }

@@ -61,7 +61,7 @@ public class BorrowPanel extends JPanel {
     public void refreshData() {
         borrowModel.setRowCount(0);
         // 从 BorrowManager 获取所有借阅记录
-        BPlusTree.SimpleList<BorrowRecord> list = borrowManager.getAllBorrowRecords();
+        BPlusTree.SimpleList<BorrowRecord> list = borrowManager.getAllRecords();
         for (int i = 0; i < list.size(); i++) {
             BorrowRecord r = list.get(i);
             borrowModel.addRow(new Object[]{

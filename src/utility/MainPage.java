@@ -3,15 +3,16 @@ package utility;
 import javax.swing.*;
 import java.awt.*;
 import boundary.*;
+import control.*;
 
 /**
- * 最终整合版 Boundary - MainPage
- * 负责主窗体布局、侧边栏导航以及各实体面板的调度
+ * Boundary - MainPage
  */
 public class MainPage extends JFrame {
+
     private CardLayout cardLayout = new CardLayout();
     private JPanel contentPanel = new JPanel(cardLayout);
-    
+
     private String userRole;
     private String userId;
 
@@ -29,35 +30,39 @@ public class MainPage extends JFrame {
 
     private void initLayout() {
         setLayout(new BorderLayout());
-
-        // --- 1. 侧边栏 (Sidebar) ---
+        
+        BookManager bookManager = new BookManager();
+        StudentManager studentManager = new StudentManager();
+        StaffManager staffManager = new StaffManager();
+        FacilityManager facilityManager = new FacilityManager();
+        
+        BorrowManager borrowManager = new BorrowManager(bookManager.getTree(), studentManager.getTree());
+        BookingManager bookingManager = new BookingManager(facilityManager.getTree());
+        
+        // --- 1.Sidebar---
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
         sidebar.setBackground(new Color(45, 52, 54));
         sidebar.setPreferredSize(new Dimension(220, 800));
 
-        // 导航按钮
-        JButton btnBooks = createMenuBtn("📚 图书管理");
-        JButton btnStudents = createMenuBtn("👥 学生管理");
-        JButton btnStaff = createMenuBtn("💼 员工管理");
-        JButton btnFacilities = createMenuBtn("🏠 设施管理");
-        JButton btnBorrow = new JButton("📖 借还业务"); // 简化版按钮
-        JButton btnBooking = new JButton("📅 预约业务"); // 简化版按钮
-        JButton btnLogout = createMenuBtn("🚪 退出登录");
+        // --- 2. Navigation buttons---
+        JButton btnBooks = createMenuBtn("📚 Books Management");
+        JButton btnStudents = createMenuBtn("👥 Students Management");
+        JButton btnStaff = createMenuBtn("💼 Staff Management");
+        JButton btnFacilities = createMenuBtn("🏠 Facilities Management");
+        JButton btnBorrow = createMenuBtn("📖 Borrowing services"); 
+        JButton btnBooking = createMenuBtn("📅 Booking services"); 
+        JButton btnLogout = createMenuBtn("🚪 Log Out");
 
-        // 样式微调
-        setupButton(btnBorrow);
-        setupButton(btnBooking);
-
-        // --- 2. 实例化所有实体面板 (Boundaries) ---
-        BookPanel bookPanel = new BookPanel();
-        StudentPanel studentPanel = new StudentPanel();
-        StaffPanel staffPanel = new StaffPanel();
-        FacilityPanel facilityPanel = new FacilityPanel();
-        BorrowPanel borrowPanel = new BorrowPanel();
-        BookingPanel bookingPanel = new BookingPanel();
-
-        // --- 3. 将面板添加到 CardLayout 容器 ---
+        // --- 3. Boundaries ---
+        BookPanel bookPanel = new BookPanel(bookManager,userRole);
+        StudentPanel studentPanel = new StudentPanel(studentManager);
+        StaffPanel staffPanel = new StaffPanel(staffManager);
+        FacilityPanel facilityPanel = new FacilityPanel(facilityManager);
+        BorrowPanel borrowPanel = new BorrowPanel(borrowManager);
+        BookingPanel bookingPanel = new BookingPanel(bookingManager);
+        
+        // --- 4. Add a panel to the CardLayout container ---
         contentPanel.add(bookPanel, "BOOKS");
         contentPanel.add(studentPanel, "STUDENTS");
         contentPanel.add(staffPanel, "STAFF");
@@ -65,22 +70,22 @@ public class MainPage extends JFrame {
         contentPanel.add(borrowPanel, "BORROW");
         contentPanel.add(bookingPanel, "BOOKING");
 
-        // --- 4. 侧边栏组装 (根据角色控制权限) ---
+        // --- 5. Sidebar assembly (based on role-based control permissions) ---
         sidebar.add(Box.createVerticalStrut(20));
         sidebar.add(btnBooks);
         sidebar.add(btnFacilities);
         sidebar.add(btnBorrow);
         sidebar.add(btnBooking);
-        
+
         if (userRole.equals("Staff")) {
             sidebar.add(btnStudents);
             sidebar.add(btnStaff);
         }
-        
+
         sidebar.add(Box.createVerticalGlue());
         sidebar.add(btnLogout);
 
-        // --- 5. 导航切换逻辑 ---
+        // --- 6. Navigation switching logic ---
         btnBooks.addActionListener(e -> switchView("BOOKS", bookPanel));
         btnFacilities.addActionListener(e -> switchView("FACILITIES", facilityPanel));
         btnBorrow.addActionListener(e -> switchView("BORROW", borrowPanel));
@@ -93,10 +98,10 @@ public class MainPage extends JFrame {
             this.dispose();
         });
 
-        // --- 6. 顶部欢迎条 ---
+        // --- 6. Top welcome bar --- 
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         topBar.setBackground(Color.WHITE);
-        topBar.add(new JLabel("当前用户: " + userId + " [" + userRole + "]  "));
+        topBar.add(new JLabel("Current user: " + userId + " [" + userRole + "]  "));
 
         add(sidebar, BorderLayout.WEST);
         add(contentPanel, BorderLayout.CENTER);
@@ -105,13 +110,17 @@ public class MainPage extends JFrame {
 
     private void switchView(String name, JPanel panel) {
         cardLayout.show(contentPanel, name);
-        // 关键：切换时强制刷新数据，确保看到的是 B+ 树和文件中的最新数据
-        if (panel instanceof BookPanel) ((BookPanel) panel).refreshData();
-        else if (panel instanceof StudentPanel) ((StudentPanel) panel).refreshData();
-        else if (panel instanceof StaffPanel) ((StaffPanel) panel).refreshData();
-        else if (panel instanceof FacilityPanel) ((FacilityPanel) panel).refreshData();
-        else if (panel instanceof BorrowPanel) ((BorrowPanel) panel).refreshData();
-        else if (panel instanceof BookingPanel) ((BookingPanel) panel).refreshData();
+        // Key: Forces a data refresh when switching, ensuring that the latest data in the B+ tree and file is displayed.
+        switch (panel) {
+            case BookPanel bookPanel -> bookPanel.refreshData();
+            case StudentPanel studentPanel -> studentPanel.refreshData();
+            case StaffPanel staffPanel -> staffPanel.refreshData();
+            case FacilityPanel facilityPanel -> facilityPanel.refreshData();
+            case BorrowPanel borrowPanel -> borrowPanel.refreshData();
+            case BookingPanel bookingPanel -> bookingPanel.refreshData();
+            default -> {
+            }
+        }
     }
 
     private JButton createMenuBtn(String t) {
@@ -128,12 +137,11 @@ public class MainPage extends JFrame {
         b.setBorderPainted(false);
         b.setAlignmentX(Component.CENTER_ALIGNMENT);
         b.setCursor(new Cursor(Cursor.HAND_CURSOR));
+      
     }
 
     public static void main(String[] args) {
-        // 程序入口
         SwingUtilities.invokeLater(() -> {
-            // 假设以管理员身份进入
             new MainPage("Staff", "Admin01").setVisible(true);
         });
     }

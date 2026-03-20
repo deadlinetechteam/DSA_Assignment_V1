@@ -8,14 +8,31 @@ package control;
  *
  * @author asus-z
  */
-import dao.StaffDAO;
 import entitiy.Staff;
 import adt.BPlusTree;
 
 public class StaffManager {
 
-    private final BPlusTree<String, Staff> mainTree = new BPlusTree<>(4);
-    private StaffDAO staffDAO = new StaffDAO();
+    private final BPlusTree<String, Staff> mainTree;
+
+    public StaffManager() {
+        String path = "staffs.bin";
+        BPlusTree<String, Staff> loadedTree = BPlusTree.load(path);
+
+        if (loadedTree != null) {
+            this.mainTree = loadedTree;
+        } else {
+            this.mainTree = new BPlusTree<>(10, path);
+        }
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (mainTree != null) {
+                System.out.println("[Auto-Save] Saving staff data to disk...");
+                mainTree.commit();
+            }
+        }));
+
+    }
 
     public void createStaff(Staff newStaff) {
         mainTree.create(newStaff.getId(), newStaff);
@@ -30,11 +47,7 @@ public class StaffManager {
     }
 
     public void deleteStaff(String s) {
-        mainTree.delete(s); // DAO 内部执行 tree.delete (触发 B+ 树平衡)
-    }
-
-    public void saveStaff(Staff s) {
-        mainTree.create(s.getId(), s); // DAO 内部会执行 tree.create 并 saveToFile
+        mainTree.delete(s);
     }
 
     public boolean authenticate(String id, String password) {
@@ -43,6 +56,6 @@ public class StaffManager {
     }
 
     public BPlusTree.SimpleList<Staff> getAllStaffs() {
-        return mainTree.sort(); // DAO 内部执行 tree.sort()
+        return mainTree.sort();
     }
 }

@@ -8,33 +8,55 @@ package control;
  *
  * @author asus-z
  */
-
-import dao.StudentDAO;
 import entitiy.Student;
 import adt.BPlusTree;
 
 public class StudentManager {
-     private final BPlusTree<String,Student> mainTree=new BPlusTree<>(4);
-    private StudentDAO studentDAO = new StudentDAO();
+
+    private final BPlusTree<String, Student> mainTree;
+
+    public StudentManager() {
+        String path = "students.bin";
+        BPlusTree<String, Student> loadedTree = BPlusTree.load(path);
+
+        if (loadedTree != null) {
+            this.mainTree = loadedTree;
+        } else {
+            this.mainTree = new BPlusTree<>(10, path);
+        }
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+               System.out.println("[Auto-Save] Saving student data to disk...");
+            mainTree.commit();
+        }));
+    }
+
+    public void saveStudent(Student s) {
+        mainTree.create(s.getId(), s);
+    }
+
+    public Student readStudent(String id) {
+        return mainTree.read(id);
+    }
+
+    public void deleteStudent(Student s) {
+        mainTree.delete(s.getId());
+    }
+
+    public void updateStudent(Student s) {
+        mainTree.create(s.getId(), s);
+    }
+
+    public BPlusTree<String, Student> getTree() {
+        return mainTree;
+    }
 
     public boolean authenticate(String id, String password) {
         Student s = mainTree.read(id);
         return s != null && s.getPassword().equals(password);
     }
 
-    public void saveStudent(Student s) {
-        mainTree.create(s.getId(),s); // DAO 内部会执行 tree.create 并 saveToFile
-    }
-    
-    public void deleteStudent(Student s) {
-        mainTree.delete(s.getId()); // DAO 内部执行 tree.delete (触发 B+ 树平衡)
-    }
-    
-    public void updateStudent(Student s) {
-        mainTree.create(s.getId(),s);
-    }
-    
     public BPlusTree.SimpleList<Student> getAllStudents() {
-        return mainTree.sort(); // DAO 内部执行 tree.sort()
+        return mainTree.sort();
     }
 }

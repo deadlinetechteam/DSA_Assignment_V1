@@ -10,9 +10,7 @@ package boundary;
  */
 import adt.BPlusTree;
 import control.BookingManager;
-import control.FacilityManager;
 import entitiy.BookingRecord;
-import entitiy.Facility;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 
@@ -20,17 +18,16 @@ import java.awt.*;
 
 public class BookingPanel extends JPanel {
 
-    private BookingManager bookingManager = new BookingManager();
-    private FacilityManager facilityManager = new FacilityManager();
+    private BookingManager bookingManager;
     private DefaultTableModel bookingModel;
     private JTable bookingTable;
 
     // 对应 BookingRecord 实体的字段
     private final String[] BOOKING_COLS = {"Booking ID", "User ID", "Facility ID", "Date", "Start Time", "End Time", "Status"};
 
-    public BookingPanel() {
+    public BookingPanel(BookingManager bookingManager) {
         setLayout(new BorderLayout());
-
+        this.bookingManager = bookingManager;
         // --- 表格初始化 ---
         bookingModel = new DefaultTableModel(BOOKING_COLS, 0) {
             @Override

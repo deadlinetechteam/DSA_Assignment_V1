@@ -17,16 +17,16 @@ import java.awt.*;
 
 public class FacilityPanel extends JPanel {
 
-    private FacilityManager facilityManager = new FacilityManager();
+    private FacilityManager facilityManager;
     private DefaultTableModel facilityModel;
     private JTable facilityTable;
 
     // 对应 Facility 实体的字段：ID, Name, Location, Venue, VenueType, Time, Capacity, Status
     private final String[] FACILITY_COLS = {"ID*", "Name*", "Location", "Venue", "Type", "Op Time", "Capacity", "Status"};
 
-    public FacilityPanel() {
+    public FacilityPanel(FacilityManager facilityManager) {
         setLayout(new BorderLayout());
-
+        this.facilityManager = facilityManager;
         // --- 表格初始化 ---
         facilityModel = new DefaultTableModel(FACILITY_COLS, 0) {
             @Override
@@ -54,7 +54,7 @@ public class FacilityPanel extends JPanel {
                 if (newStatus != null && !newStatus.isEmpty()) {
                     Facility f = facilityManager.readFacility(id);//.get(r); // 简化获取方式
                     f.setStatus(newStatus);
-                    facilityManager.addFacility(f);
+                    facilityManager.createFacility(f);
                     refreshData();
                 }
             }
@@ -123,7 +123,7 @@ public class FacilityPanel extends JPanel {
                         tfs[3].getText().trim(), tfs[4].getText().trim(), tfs[5].getText().trim(),
                         Integer.parseInt(tfs[6].getText().trim()), tfs[7].getText().trim()
                 );
-                facilityManager.addFacility(f); // 持久化
+                facilityManager.createFacility(f);
                 refreshData();
             } catch (NumberFormatException ex) {
                 JOptionPane.showMessageDialog(this, "Capacity must be a number!");

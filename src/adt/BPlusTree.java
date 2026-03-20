@@ -22,16 +22,23 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
 
     // --- Constructor ---
     public BPlusTree(int m, String filePath) {
+        this(m);
+        if (filePath != null) {
+            this.dao = new FileDAO<>(filePath);
+        }
+    }
+
+    public BPlusTree(int m) {
         if (m < 3) {
             throw new IllegalArgumentException("M must be at least 3.");
         }
         this.M = m;
         this.root = new LeafNode<>(M);
-        this.dao = new FileDAO<>(filePath);;
+        this.dao = null;
     }
 
     public BPlusTree() {
-        this.root = new LeafNode<>(M);
+        this(10);
     }
 
     private void setDAO(FileDAO<K, V> dao) {
@@ -330,7 +337,7 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
         }
     }
 
-    public static class SimpleList<T> {
+    public static class SimpleList<T> implements Serializable {
 
         private Object[] elements = new Object[10];
         private int size = 0;
@@ -351,6 +358,29 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
         @SuppressWarnings("unchecked")
         public T get(int i) {
             return (T) elements[i];
+        }
+
+        public boolean contains(T element) {
+            for (int i = 0; i < size; i++) {
+                if (elements[i].equals(element)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public boolean remove(T element) {
+            for (int i = 0; i < size; i++) {
+                if (elements[i].equals(element)) {
+
+                    for (int j = i; j < size - 1; j++) {
+                        elements[j] = elements[j + 1];
+                    }
+                    elements[--size] = null;
+                    return true;
+                }
+            }
+            return false;
         }
     }
 

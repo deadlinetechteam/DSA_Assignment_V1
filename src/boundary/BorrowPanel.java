@@ -10,8 +10,6 @@ package boundary;
  */
 import adt.BPlusTree;
 import control.BorrowManager;
-import control.BookManager;
-import entitiy.Book;
 import entitiy.BorrowRecord;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -19,17 +17,16 @@ import java.awt.*;
 
 public class BorrowPanel extends JPanel {
 
-    private BorrowManager borrowManager = new BorrowManager();
-    private BookManager bookManager = new BookManager(); // 用于在借书时选择书籍
-    private DefaultTableModel borrowModel;
-    private JTable borrowTable;
+    private BorrowManager borrowManager;
+    private final DefaultTableModel borrowModel;
+    private final JTable borrowTable;
 
     private final String[] BORROW_COLS = {"TX ID", "Book ID", "Title", "Student ID", "Borrow Date", "Due Date", "Status"};
 
-    public BorrowPanel() {
+    public BorrowPanel(BorrowManager borrowManager) {
         setLayout(new BorderLayout());
-
-        // --- 表格初始化 ---
+        this.borrowManager = borrowManager;
+        // --- table initialization ---
         borrowModel = new DefaultTableModel(BORROW_COLS, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -73,31 +70,58 @@ public class BorrowPanel extends JPanel {
 
     // 借书对话框逻辑
     private void showBorrowDialog() {
+        // 1. 准备容器和布局
         JPanel pane = new JPanel(new GridLayout(0, 2, 5, 5));
-        JTextField txtStudentId = new JTextField();
-        JTextField txtStudentName = new JTextField();
-        JTextField txtBookId = new JTextField();
 
+        // 2. 处理学生 ID (如果是学生登录，直接锁定 ID，不让改)
+        // 这里的 currentUserId 需要从 MainPage 传给 BorrowPanel 构造函数
+        JTextField txtStudentId = new JTextField(currentUserId);
+        txtStudentId.setEditable(false);
+
+        // 3. 核心：创建图书选择下拉框
+        JComboBox<String> bookSelector = new JComboBox<>();
+
+        // 从 BookManager 获取所有状态为 "Available" 的书籍
+        // 假设你有一个方法获取 SimpleList<Book>
+        var availableBooks = bookManager.getAllBooks();
+        int count = 0;
+        for (int i = 0; i < availableBooks.size(); i++) {
+            var b = availableBooks.get(i);
+            // 只把能借的书加进下拉框
+            if ("Available".equalsIgnoreCase(b.getStatus())) {
+                bookSelector.addItem(b.getId() + " - " + b.getTitle());
+                count++;
+            }
+        }
+
+        // 4. 组装弹窗界面
         pane.add(new JLabel("Student ID:"));
         pane.add(txtStudentId);
-        pane.add(new JLabel("Student Name:"));
-        pane.add(txtStudentName);
-        pane.add(new JLabel("Book ID:"));
-        pane.add(txtBookId);
+        pane.add(new JLabel("Select Book:"));
 
-        int result = JOptionPane.showConfirmDialog(null, pane, "New Borrowing", JOptionPane.OK_CANCEL_OPTION);
-        if (result == JOptionPane.OK_OPTION) {
+        if (count == 0) {
+            pane.add(new JLabel("No books available!"));
+        } else {
+            pane.add(bookSelector);
+        }
+
+        // 5. 显示对话框
+        int result = JOptionPane.showConfirmDialog(this, pane, "New Borrowing", JOptionPane.OK_CANCEL_OPTION);
+
+        if (result == JOptionPane.OK_OPTION && count > 0) {
+            // 拿到选中的字符串，例如 "B001 - Java Programming"
+            String selectedItem = (String) bookSelector.getSelectedItem();
+            // 拆分出 ID
+            String bId = selectedItem.split(" - ")[0];
             String sId = txtStudentId.getText().trim();
-            String sName = txtStudentName.getText().trim();
-            String bId = txtBookId.getText().trim();
 
-            // 调用 BorrowManager 处理借书逻辑 (联动 Book 状态更新与 Record 生成)
-            boolean success = borrowManager.borrowBook(sId, sName, bId);
+            // 6. 执行借书逻辑
+            boolean success = borrowManager.borrowBook(sId, bId);
             if (success) {
                 JOptionPane.showMessageDialog(this, "Borrowing Successful!");
-                refreshData();
+                refreshData(); // 刷新当前的借阅记录表格
             } else {
-                JOptionPane.showMessageDialog(this, "Failed: Book not available or not found.");
+                JOptionPane.showMessageDialog(this, "System Error: Please try again.");
             }
         }
     }

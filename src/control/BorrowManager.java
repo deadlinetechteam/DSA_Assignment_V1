@@ -8,59 +8,109 @@ package control;
  *
  * @author asus-z
  */
-
-import dao.BookDAO;
-import dao.BorrowDAO;
 import entitiy.Book;
 import entitiy.BorrowRecord;
+import entitiy.Student;
 import adt.BPlusTree;
 import java.time.LocalDate;
 
 public class BorrowManager {
-    private final BPlusTree<String,Book> mainBookTree=new BPlusTree<>(4);
-    private final BPlusTree<String,BorrowRecord> mainBorrowRecordTree=new BPlusTree<>(4);
-    private BookDAO bookDAO = new BookDAO();
-    private BorrowDAO borrowDAO = new BorrowDAO();
 
-    // 借书逻辑
-    public boolean borrowBook(String studentId, String studentName, String bookId) {
-        Book book = mainBookTree.read(bookId);
+    private final BPlusTree<String, BorrowRecord> mainTree;
+    private final BPlusTree<String, Student> studentTree;
+    private final BPlusTree<String, Book> bookTree;
+
+    public BorrowManager(BPlusTree<String, Book> sharedBookTree, BPlusTree<String, Student> studentTree) {
+        this.bookTree = sharedBookTree;
+        this.studentTree = studentTree;
+
+        String path = "BorrowRecords.bin";
+        BPlusTree<String, BorrowRecord> loaded = BPlusTree.load(path);
+        if (loaded != null) {
+            this.mainTree = loaded;
+        } else {
+            this.mainTree = new BPlusTree<>(10, path);
+        }
         
-        // 1. 检查书籍是否存在且可用
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+              System.out.println("[Auto-Save] Saving borrow record data to disk...");
+            if (this.mainTree != null) {
+                this.mainTree.commit();
+            }
+        }));
+    }
+
+    public boolean borrowBook(String studentId, String bookId) {
+        // 1. 校验学生是否存在
+        Student student = studentTree.read(studentId);
+        if (student == null) {
+            System.out.println("错误：学生 ID 不存在");
+            return false;
+        }
+
+        // 2. 校验书籍是否存在且可用
+        Book book = bookTree.read(bookId);
         if (book == null || !book.getAvailability().equalsIgnoreCase("Available")) {
             return false;
         }
 
-        // 2. 更新书籍状态
+        // 3. 执行借书：修改书态 + 生成记录
         book.setAvailability("Borrowed by " + studentId);
-        mainBookTree.update(book.getId(),book);
+        bookTree.update(bookId, book);
 
-        // 3. 创建并储存借阅记录
-        String txId = "TX" + System.currentTimeMillis(); // 简单生成唯一ID
-        String today = LocalDate.now().toString();
-        String dueDate = LocalDate.now().plusDays(14).toString(); // 默认借期14天
-        
-        BorrowRecord record = new BorrowRecord(txId, bookId, book.getTitle(), 
-                                              studentId, studentName, today, dueDate, "On Loan");
-        borrowDAO.add(record);
+        String txId = "TX" + System.currentTimeMillis();
+        BorrowRecord record = new BorrowRecord(
+                txId, bookId, book.getTitle(),
+                studentId, student.getName(), // 自动获取学生姓名
+                java.time.LocalDate.now().toString(),
+                java.time.LocalDate.now().plusDays(14).toString(),
+                "On Loan"
+        );
+
+        mainTree.create(txId, record);
+
+        // 4. 统一提交持久化
+        bookTree.commit();
+        mainTree.commit();
         return true;
     }
 
     // 还书逻辑
     public boolean returnBook(String bookId) {
-        Book book = mainBookTree.read(bookId);
-        if (book == null) return false;
+        // 1. 校验书籍是否存在
+        Book book = bookTree.read(bookId);
+        if (book == null) {
+            return false;
+        }
 
-        // 1. 将书籍设为可用
+        // 2. 将书籍状态恢复为 Available
         book.setAvailability("Available");
-        mainBookTree.update(book.getId(),book);
-        
-        // 2. 更新对应的借阅记录状态（实际项目中可根据 bookId 查找未完成的记录）
-        // 这里简化处理：书籍恢复可用即代表归还
-        return true;
+        bookTree.update(bookId, book); // 更新书树
+
+        // 3. 寻找并更新借阅记录 (关键修改)
+        // 遍历当前所有的借阅记录，找到那条对应的“未还”记录
+        BPlusTree.SimpleList<BorrowRecord> allRecords = mainTree.sort(); // 获取有序列表
+        boolean recordUpdated = false;
+
+        for (int i = 0; i < allRecords.size(); i++) {
+            BorrowRecord r = allRecords.get(i);
+            // 匹配逻辑：书籍ID一致 且 状态是 "On Loan"
+            if (r.getBookId().equals(bookId) && "On Loan".equalsIgnoreCase(r.getStatus())) {
+                r.setStatus("Returned"); // 标记为已归还
+                mainTree.update(r.getTransactionId(), r); // 更新记录树
+                recordUpdated = true;
+                break;
+            }
+        }
+
+        // 4. 提交持久化
+        bookTree.commit(); //
+        mainTree.commit();
+
+        return recordUpdated; // 返回是否成功找到了对应的借阅记录并归还
     }
 
     public BPlusTree.SimpleList<BorrowRecord> getAllRecords() {
-        return borrowDAO.getAll();
+        return mainTree.sort();
     }
 }

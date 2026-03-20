@@ -17,7 +17,7 @@ import java.awt.*;
 
 public class StaffPanel extends JPanel {
 
-    private StaffManager staffManager = new StaffManager();
+    private StaffManager staffManager;
     private DefaultTableModel staffModel;
     private JTable staffTable;
 
@@ -25,9 +25,9 @@ public class StaffPanel extends JPanel {
     // 参考自
     private final String[] STAFF_COLS = {"ID*", "Name*", "Password*", "Location", "Department", "Gender", "Email"};
 
-    public StaffPanel() {
+    public StaffPanel(StaffManager staffManager) {
         setLayout(new BorderLayout());
-
+        this.staffManager = staffManager;
         // --- 表格初始化 ---
         staffModel = new DefaultTableModel(STAFF_COLS, 0) {
             @Override

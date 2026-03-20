@@ -4,12 +4,14 @@
  */
 package entitiy;
 
+import java.io.Serializable;
+
 /**
  *
  * @author asus-z
  */
+public class BorrowRecord implements Serializable {
 
-public class BorrowRecord {
     private String transactionId;
     private String bookId;
     private String bookTitle;
@@ -18,6 +20,7 @@ public class BorrowRecord {
     private String borrowDate;
     private String dueDate;
     private String status;
+    private static final long serialVersionUID = 1L;
 
     public BorrowRecord(String transactionId, String bookId, String bookTitle, String studentId, String studentName, String borrowDate, String dueDate, String status) {
         this.transactionId = transactionId;
@@ -94,7 +97,4 @@ public class BorrowRecord {
         this.status = status;
     }
 
-  
-
-   
 }

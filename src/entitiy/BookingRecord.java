@@ -4,20 +4,24 @@
  */
 package entitiy;
 
+import java.io.Serializable;
+
 /**
  *
  * @author asus-z
  */
-public class BookingRecord {
+public class BookingRecord implements Serializable {
+
     private String id;
     private String userId;
     private String facilityId;
-    
+
     private String bookingDate;
     private String startTime;
     private String endTime;
-    
+
     private String status;
+    private static final long serialVersionUID = 1L;
 
     public BookingRecord(String id, String userId, String facilityId, String bookingDate, String startTime, String endTime, String status) {
         this.id = id;
@@ -89,6 +93,5 @@ public class BookingRecord {
     public String toString() {
         return "BookingRecord{" + "id=" + id + ", userId=" + userId + ", facilityId=" + facilityId + ", bookingDate=" + bookingDate + ", startTime=" + startTime + ", endTime=" + endTime + ", status=" + status + '}';
     }
-    
-    
+
 }

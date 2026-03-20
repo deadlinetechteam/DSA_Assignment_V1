@@ -4,11 +4,14 @@
  */
 package entitiy;
 
+import java.io.Serializable;
+
 /**
  *
  * @author asus-z
  */
-public class Student {
+public class Student implements Serializable {
+
     private String Id;
     private String Name;
     private String Password;
@@ -18,6 +21,7 @@ public class Student {
     private String Programme;
     private String Address;
     private String ContactNo;
+    private static final long serialVersionUID = 1L;
 
     public Student(String Id, String Name, String Password, String Gender, String MykadNO, String Email, String Programme, String Address, String ContactNo) {
         this.Id = Id;
@@ -35,7 +39,6 @@ public class Student {
         return Name;
     }
 
-    
     public String getId() {
         return Id;
     }
@@ -108,5 +111,5 @@ public class Student {
     public String toString() {
         return "student{" + "Id=" + Id + ", Gender=" + Gender + ", MykadNO=" + MykadNO + ", Email=" + Email + ", Programme=" + Programme + ", Address=" + Address + ", ContactNo=" + ContactNo + '}';
     }
-    
+
 }

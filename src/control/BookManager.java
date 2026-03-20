@@ -8,28 +8,42 @@ package control;
  *
  * @author asus-z
  */
-
-
 import entitiy.Book;
 import adt.BPlusTree;
 
 public class BookManager {
-    private final BPlusTree<String,Book> mainTree=new BPlusTree<>(4);
+
+    private final BPlusTree<String, Book> mainTree;
+
+    public BookManager() {
+        String path = "Books.bin";
+        BPlusTree<String, Book> loadedTree = BPlusTree.load(path);
+        if (loadedTree != null) {
+            this.mainTree = loadedTree;
+        } else {
+            this.mainTree = new BPlusTree<>(10, path);
+        }
+
+        Runtime.getRuntime(). (new Thread(() -> {
+            System.out.println("System shutting down, saving data...");
+            mainTree.commit();
+        }));
+    }
+
     // 入库新书
-    
     public void createBook(Book newBook) {
-        mainTree.create(newBook.getId(),newBook); 
+        mainTree.create(newBook.getId(), newBook);
     }
 
     // 根据ID查询
     public Book readBook(String id) {
         return mainTree.read(id);
     }
-    
+
     // 更新书籍信息
     public void updateBook(Book UpdatedBook) {
-        mainTree.update(UpdatedBook.getId(),UpdatedBook);
-        
+        mainTree.update(UpdatedBook.getId(), UpdatedBook);
+
     }
 
     // 报废书籍 (触发 B+ 树删除逻辑)

@@ -4,24 +4,28 @@
  */
 package adt;
 
+import java.io.Serializable;
+
 /**
  *
  * @author asus-z
+ * @param <K>
+ * @param <V>
  */
+public class LeafNode<K extends Comparable<K> & Serializable, V extends Serializable> extends Node<K, V> {
 
-
-class LeafNode<K extends Comparable<K>, V> extends Node<K, V> {
     protected V[] values;
     protected LeafNode<K, V> next; // Brother pointers used for range queries
     protected LeafNode<K, V> prev;
-    
+    private static final long serialVersionUID = 1L;
+
     public LeafNode(int M) {
         super(M);
-        this.values = (V[]) new Object[M];
+        this.values = (V[]) new Serializable[M];
         this.next = null;
         this.prev = null;
     }
-    
+
     protected void insertAt(int pos, K key, V value) {
         for (int i = currentKeyCount; i > pos; i--) {
             keys[i] = keys[i - 1];
@@ -30,7 +34,7 @@ class LeafNode<K extends Comparable<K>, V> extends Node<K, V> {
         keys[pos] = key;
         values[pos] = value;
         currentKeyCount++;
-    }   
+    }
 
     protected void removeAt(int idx) {
         for (int i = idx; i < currentKeyCount - 1; i++) {
@@ -41,7 +45,7 @@ class LeafNode<K extends Comparable<K>, V> extends Node<K, V> {
         values[currentKeyCount - 1] = null;
         currentKeyCount--;
     }
-    
+
     @Override
     public void combineWith(Node<K, V> right, K parentKey) {
         LeafNode<K, V> r = (LeafNode<K, V>) right;

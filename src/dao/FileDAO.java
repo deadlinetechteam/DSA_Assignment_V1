@@ -13,15 +13,14 @@ import adt.*;
  * @param <K>
  * @param <V>
  */
-
 public class FileDAO<K extends Comparable<K> & Serializable, V extends Serializable> {
+
     private String filePath;
 
     public FileDAO(String filePath) {
         this.filePath = filePath;
     }
 
-    
     public void save(BPlusTree<K, V> tree) {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filePath))) {
             oos.writeObject(tree);
@@ -30,14 +29,18 @@ public class FileDAO<K extends Comparable<K> & Serializable, V extends Serializa
         }
     }
 
-   
     @SuppressWarnings("unchecked")
     public BPlusTree<K, V> load() {
         File file = new File(filePath);
-        if (!file.exists()) return null;
+        if (!file.exists()) {
+            return null;
+        }
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(filePath))) {
+
             return (BPlusTree<K, V>) ois.readObject();
         } catch (Exception e) {
+            System.out.println("Exception: " + e.getMessage());
+            e.printStackTrace();
             return null;
         }
     }

@@ -4,13 +4,18 @@
  */
 package adt;
 
+import java.io.Serializable;
+
 /**
  *
  * @author asus-z
+ * @param <K>
+ * @param <V>
  */
-class InternalNode<K extends Comparable<K>, V> extends Node<K, V> {
+public class InternalNode<K extends Comparable<K> & Serializable, V extends Serializable> extends Node<K, V> {
 
     protected Node<K, V>[] children;
+    private static final long serialVersionUID = 1L;
 
     public InternalNode(int M) {
         super(M);
@@ -47,7 +52,7 @@ class InternalNode<K extends Comparable<K>, V> extends Node<K, V> {
             for (int i = 0; i < currentKeyCount - 1; i++) {
                 keys[i] = keys[i + 1];
             }
-            keys[currentKeyCount - 1] = null; 
+            keys[currentKeyCount - 1] = null;
             for (int i = 0; i < currentKeyCount; i++) {
                 children[i] = children[i + 1];
             }

@@ -18,22 +18,23 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
     private Node<K, V> root;
     private int M = 3;
     private transient FileDAO<K, V> dao;
+    private static final long serialVersionUID = 1L;
 
     // --- Constructor ---
-    public BPlusTree(int m, FileDAO<K, V> dao) {
+    public BPlusTree(int m, String filePath) {
         if (m < 3) {
             throw new IllegalArgumentException("M must be at least 3.");
         }
         this.M = m;
         this.root = new LeafNode<>(M);
-        this.dao = dao;
+        this.dao = new FileDAO<>(filePath);;
     }
 
     public BPlusTree() {
         this.root = new LeafNode<>(M);
     }
 
-    public void setDAO(FileDAO<K, V> dao) {
+    private void setDAO(FileDAO<K, V> dao) {
         this.dao = dao;
     }
 
@@ -43,6 +44,17 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
         } else {
             System.out.println("No DAO instance found, cannot save.");
         }
+    }
+
+    public static <K extends Comparable<K> & Serializable, V extends Serializable> BPlusTree<K, V> load(String filePath) {
+        FileDAO<K, V> dao = new FileDAO<>(filePath);
+        BPlusTree<K, V> tree = dao.load();
+
+        if (tree != null) {
+            tree.setDAO(dao);
+            return tree;
+        }
+        return null;
     }
 
     // --- (CRUD) ---
@@ -201,7 +213,7 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
     private void handleUnderflow(Node<K, V> node) {
         InternalNode<K, V> parent = (InternalNode<K, V>) node.parent;
         int childIdx = parent.indexOfChild(node);
-        System.out.println(childIdx);
+
         // 1. Borrow from Left Sibling
         if (childIdx > 0) {
             Node<K, V> leftSibling = parent.children[childIdx - 1];
@@ -363,12 +375,12 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
 
     public SimpleList<V> sort() {
         SimpleList<V> result = new SimpleList<>();
-        // 找到最左边的叶子节点
+        // Find the leftmost leaf node
         Node<K, V> curr = root;
         while (curr instanceof InternalNode) {
             curr = ((InternalNode<K, V>) curr).children[0];
         }
-        // 遍历双向链表
+        // Traversing doubly linked list
         LeafNode<K, V> leaf = (LeafNode<K, V>) curr;
         while (leaf != null) {
             for (int i = 0; i < leaf.currentKeyCount; i++) {

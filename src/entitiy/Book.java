@@ -4,11 +4,14 @@
  */
 package entitiy;
 
+import java.io.Serializable;
+
 /**
  *
  * @author asus-z
  */
-public class Book {
+public class Book implements Serializable {
+
     private String id;
     private String title;
     private String availability;
@@ -19,6 +22,7 @@ public class Book {
     private String publicationDate;
     private String documentType;
     private String contentNotes;
+    private static final long serialVersionUID = 1L;
 
     public Book(String id, String title, String availability, String language, String authors, String publicationInformation, String edition, String publicationDate, String documentType, String contentNotes) {
         this.id = id;
@@ -117,5 +121,5 @@ public class Book {
     public String toString() {
         return "Book{" + "id=" + id + ", title=" + title + ", availability=" + availability + ", language=" + language + ", authors=" + authors + ", publicationInformation=" + publicationInformation + ", edition=" + edition + ", publicationDate=" + publicationDate + ", documentType=" + documentType + ", contentNotes=" + contentNotes + '}';
     }
-    
+
 }

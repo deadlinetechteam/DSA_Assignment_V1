@@ -4,14 +4,14 @@
  */
 package entitiy;
 
+import java.io.Serializable;
+
 /**
  *
  * @author asus-z
  */
-
-import java.io.Serializable;
-
 public class Facility implements Serializable {
+
     private String id;
     private String name;
     private String location;
@@ -20,6 +20,7 @@ public class Facility implements Serializable {
     private String operationTime;
     private int capacity;
     private String status;
+    private static final long serialVersionUID = 1L;
 
     public Facility(String id, String name, String location, String venue, String venueType, String operationTime, int capacity, String status) {
         this.id = id;
@@ -100,5 +101,5 @@ public class Facility implements Serializable {
     public String toString() {
         return "Facility{" + "id=" + id + ", name=" + name + ", location=" + location + ", venue=" + venue + ", venueType=" + venueType + ", operationTime=" + operationTime + ", capacity=" + capacity + ", status=" + status + '}';
     }
-    
+
 }

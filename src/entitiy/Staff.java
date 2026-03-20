@@ -4,11 +4,14 @@
  */
 package entitiy;
 
+import java.io.Serializable;
+
 /**
  *
  * @author asus-z
  */
-public class Staff {
+public class Staff implements Serializable {
+
     private String Id;
     private String Name;
     private String Password;
@@ -16,6 +19,7 @@ public class Staff {
     private String department;
     private String Gender;
     private String Email;
+    private static final long serialVersionUID = 1L;
 
     public Staff(String Id, String Name, String Password, String location, String department, String Gender, String Email) {
         this.Id = Id;
@@ -87,5 +91,5 @@ public class Staff {
     public String toString() {
         return "Staff{" + "Id=" + Id + ", Name=" + Name + ", location=" + location + ", department=" + department + ", Gender=" + Gender + ", Email=" + Email + '}';
     }
-    
+
 }

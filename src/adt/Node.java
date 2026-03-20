@@ -12,17 +12,18 @@ import java.io.Serializable;
  * @param <K>
  * @param <V>
  */
+public abstract class Node<K extends Comparable<K> & Serializable, V extends Serializable> implements Serializable {
 
-public abstract class Node<K extends Comparable<K> & Serializable, V extends Serializable> implements Serializable{
     // use List use for insert and delete operation
     protected K[] keys;
     protected int currentKeyCount;
     protected Node<K, V> parent;
     protected final int M;
     protected final int minKeys;
+    private static final long serialVersionUID = 1L;
 
     public Node(int M) {
-        this.keys = (K[]) new Comparable[M]; 
+        this.keys = (K[]) new Comparable[M];
         this.currentKeyCount = 0;
         this.parent = null;
         this.M = M;
@@ -41,13 +42,13 @@ public abstract class Node<K extends Comparable<K> & Serializable, V extends Ser
 
     //Determne if velue lower than lower limit (use for delete operator)
     public boolean isUnderflow() {
-       return currentKeyCount < minKeys;
+        return currentKeyCount < minKeys;
     }
-    
+
     public boolean canLend() {
         return this.currentKeyCount > minKeys;
     }
-    
+
     public abstract void combineWith(Node<K, V> rightSibling, K parentKey);
 
 }

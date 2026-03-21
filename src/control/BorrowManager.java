@@ -12,13 +12,17 @@ import entitiy.Book;
 import entitiy.BorrowRecord;
 import entitiy.Student;
 import adt.BPlusTree;
+import adt.BPlusTree.SimpleList;
 import java.time.LocalDate;
+import javax.swing.JOptionPane;
 
 public class BorrowManager {
 
     private final BPlusTree<String, BorrowRecord> mainTree;
     private final BPlusTree<String, Student> studentTree;
     private final BPlusTree<String, Book> bookTree;
+
+    private BPlusTree<String, SimpleList<String>> userIndex;
 
     public BorrowManager(BPlusTree<String, Book> sharedBookTree, BPlusTree<String, Student> studentTree) {
         this.bookTree = sharedBookTree;
@@ -31,9 +35,11 @@ public class BorrowManager {
         } else {
             this.mainTree = new BPlusTree<>(10, path);
         }
-        
+
+        rebuildIndex();
+
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-              System.out.println("[Auto-Save] Saving borrow record data to disk...");
+            System.out.println("[Auto-Save] Saving borrow record data to disk...");
             if (this.mainTree != null) {
                 this.mainTree.commit();
             }
@@ -41,76 +47,111 @@ public class BorrowManager {
     }
 
     public boolean borrowBook(String studentId, String bookId) {
-        // 1. 校验学生是否存在
-        Student student = studentTree.read(studentId);
-        if (student == null) {
-            System.out.println("错误：学生 ID 不存在");
+
+        if (getActiveBorrowCount(studentId) >= 3) {
+            System.out.println("Limit reached: Student already has 3 books on loan.");
             return false;
         }
 
-        // 2. 校验书籍是否存在且可用
         Book book = bookTree.read(bookId);
-        if (book == null || !book.getAvailability().equalsIgnoreCase("Available")) {
+        if (book == null || !"Available".equalsIgnoreCase(book.getAvailability())) {
+            return false;
+        }
+        Student s = studentTree.read(studentId);
+        if (s == null) {
+            JOptionPane.showMessageDialog(null, "Student not found!");
             return false;
         }
 
-        // 3. 执行借书：修改书态 + 生成记录
         book.setAvailability("Borrowed by " + studentId);
         bookTree.update(bookId, book);
 
         String txId = "TX" + System.currentTimeMillis();
         BorrowRecord record = new BorrowRecord(
                 txId, bookId, book.getTitle(),
-                studentId, student.getName(), // 自动获取学生姓名
-                java.time.LocalDate.now().toString(),
-                java.time.LocalDate.now().plusDays(14).toString(),
+                studentId, s.getName(),
+                LocalDate.now().toString(),
+                LocalDate.now().plusDays(14).toString(),
                 "On Loan"
         );
 
         mainTree.create(txId, record);
-
-        // 4. 统一提交持久化
-        bookTree.commit();
-        mainTree.commit();
+        addRecordToIndex(studentId, txId);
         return true;
     }
 
-    // 还书逻辑
-    public boolean returnBook(String bookId) {
-        // 1. 校验书籍是否存在
-        Book book = bookTree.read(bookId);
-        if (book == null) {
+    public int getActiveBorrowCount(String studentId) {
+        int count = 0;
+        SimpleList<BorrowRecord> all = mainTree.sort();
+        for (int i = 0; i < all.size(); i++) {
+            BorrowRecord r = all.get(i);
+            if (r.getStudentId().equals(studentId) && "On Loan".equalsIgnoreCase(r.getStatus())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public SimpleList<BorrowRecord> getRecordsByStudent(String studentId) {
+        SimpleList<BorrowRecord> results = new SimpleList<>();
+        SimpleList<String> txIds = userIndex.read(studentId);
+        if (txIds != null) {
+            for (int i = 0; i < txIds.size(); i++) {
+                BorrowRecord r = mainTree.read(txIds.get(i));
+                if (r != null) {
+                    results.add(r);
+                }
+            }
+        }
+        return results;
+    }
+
+    public boolean returnBook(String txId) {
+        // 1. Read the borrowing record first
+        BorrowRecord r = mainTree.read(txId);
+
+        // 2. If the record does not exist, or the book has already been returned, return failure directly.
+        if (r == null || !"On Loan".equalsIgnoreCase(r.getStatus())) {
             return false;
         }
 
-        // 2. 将书籍状态恢复为 Available
-        book.setAvailability("Available");
-        bookTree.update(bookId, book); // 更新书树
+        // 3.Since the record is valid, we can then retrieve the bookId from the record.
+        Book book = bookTree.read(r.getBookId());
 
-        // 3. 寻找并更新借阅记录 (关键修改)
-        // 遍历当前所有的借阅记录，找到那条对应的“未还”记录
-        BPlusTree.SimpleList<BorrowRecord> allRecords = mainTree.sort(); // 获取有序列表
-        boolean recordUpdated = false;
-
-        for (int i = 0; i < allRecords.size(); i++) {
-            BorrowRecord r = allRecords.get(i);
-            // 匹配逻辑：书籍ID一致 且 状态是 "On Loan"
-            if (r.getBookId().equals(bookId) && "On Loan".equalsIgnoreCase(r.getStatus())) {
-                r.setStatus("Returned"); // 标记为已归还
-                mainTree.update(r.getTransactionId(), r); // 更新记录树
-                recordUpdated = true;
-                break;
-            }
+        if (book != null) {
+            // 4. Modify book status
+            book.setAvailability("Available");
+            bookTree.update(book.getId(), book);
         }
 
-        // 4. 提交持久化
-        bookTree.commit(); //
-        mainTree.commit();
+        // 5. Change the record status to "repaid".
+        r.setStatus("Returned");
+        mainTree.update(txId, r);
 
-        return recordUpdated; // 返回是否成功找到了对应的借阅记录并归还
+        return true;
     }
 
     public BPlusTree.SimpleList<BorrowRecord> getAllRecords() {
         return mainTree.sort();
+    }
+
+    private void rebuildIndex() {
+        this.userIndex = new BPlusTree<>(10);
+        SimpleList<BorrowRecord> all = mainTree.sort();
+        for (int i = 0; i < all.size(); i++) {
+            BorrowRecord r = all.get(i);
+            addRecordToIndex(r.getStudentId(), r.getTransactionId());
+        }
+    }
+
+    private void addRecordToIndex(String studentId, String txId) {
+        SimpleList<String> txIds = userIndex.read(studentId);
+        if (txIds == null) {
+            txIds = new SimpleList<>();
+            userIndex.create(studentId, txIds);
+        }
+        if (!txIds.contains(txId)) {
+            txIds.add(txId);
+        }
     }
 }

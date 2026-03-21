@@ -3,14 +3,17 @@ package utility;
 import javax.swing.*;
 import java.awt.*;
 
+
 public class login extends JFrame {
     private JTextField txtUser;
     private JPasswordField txtPass;
     private JComboBox<String> roleCombo;
 
     public login() {
+        GlobalManager.init(); 
+
         setTitle("Library System Login");
-        setSize(400, 300);
+        setSize(400, 350);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         
@@ -39,19 +42,38 @@ public class login extends JFrame {
 
         add(mainPanel);
 
+    
         btnLogin.addActionListener(e -> {
             String id = txtUser.getText().trim();
+            String password = new String(txtPass.getPassword()); 
             String role = (String) roleCombo.getSelectedItem();
-            if (!id.isEmpty()) {
+
+            if (id.isEmpty() || password.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please fill in all fields", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            boolean isAuthenticated = false;
+
+            if ("Staff".equals(role)) {
+                isAuthenticated = GlobalManager.getStaffManager().authenticate(id, password);
+            } else {
+                isAuthenticated = GlobalManager.getStudentManager().authenticate(id, password);
+            }
+
+            if (isAuthenticated) {
+              
                 new MainPage(role, id).setVisible(true);
                 this.dispose();
             } else {
-                JOptionPane.showMessageDialog(this, "Please enter a User ID", "Login Error", JOptionPane.ERROR_MESSAGE);
+                // 验证失败
+                JOptionPane.showMessageDialog(this, "Invalid ID or Password!", "Login Failed", JOptionPane.ERROR_MESSAGE);
             }
         });
     }
 
     public static void main(String[] args) {
+    
         SwingUtilities.invokeLater(() -> new login().setVisible(true));
     }
 }

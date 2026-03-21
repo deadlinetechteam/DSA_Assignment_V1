@@ -8,7 +8,7 @@ package boundary;
  *
  * @author asus-z
  */
-import adt.BPlusTree;
+import adt.BPlusTree.SimpleList;
 import control.StaffManager;
 import entitiy.Staff;
 import javax.swing.*;
@@ -18,17 +18,22 @@ import java.awt.*;
 public class StaffPanel extends JPanel {
 
     private StaffManager staffManager;
-    private DefaultTableModel staffModel;
+    private final DefaultTableModel staffModel;
     private JTable staffTable;
 
-    // 对应 Staff 实体的字段：ID, Name, Password, Location, Department, Gender, Email
-    // 参考自
+    // 搜索组件
+    private JComboBox<String> comboSearchType;
+    private final JTextField txtSearch;
+    private final JButton btnSearch;
+    private final JButton btnReset;
+
     private final String[] STAFF_COLS = {"ID*", "Name*", "Password*", "Location", "Department", "Gender", "Email"};
 
     public StaffPanel(StaffManager staffManager) {
         setLayout(new BorderLayout());
         this.staffManager = staffManager;
-        // --- 表格初始化 ---
+
+        // --- 1. 表格初始化 ---
         staffModel = new DefaultTableModel(STAFF_COLS, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -38,53 +43,99 @@ public class StaffPanel extends JPanel {
         staffTable = new JTable(staffModel);
         staffTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 
-        // --- 操作按钮面板 ---
+        // --- 2. 初始化搜索栏 (顶部) ---
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        String[] searchOptions = {"Name", "ID", "Gender"};
+        comboSearchType = new JComboBox<>(searchOptions);
+        txtSearch = new JTextField(15);
+        btnSearch = new JButton("🔍 Search");
+        btnReset = new JButton("🔄 Reset");
+
+        searchPanel.add(new JLabel("Search By:"));
+        searchPanel.add(comboSearchType);
+        searchPanel.add(new JLabel("Keyword:"));
+        searchPanel.add(txtSearch);
+        searchPanel.add(btnSearch);
+        searchPanel.add(btnReset);
+
+        // --- 3. 绑定搜索和重集事件 ---
+        btnSearch.addActionListener(e -> performSearch());
+        txtSearch.addActionListener(e -> performSearch()); // 回车搜索
+        btnReset.addActionListener(e -> {
+            txtSearch.setText("");
+            refreshData();
+        });
+
+        // --- 4. 操作按钮面板 (底部) ---
         JPanel bp = new JPanel();
         JButton addB = new JButton("Add Staff");
         JButton upB = new JButton("Update Staff");
         JButton delB = new JButton("Delete Staff");
 
         addB.addActionListener(e -> showEntryDialog(null));
-
-        // 更新逻辑
         upB.addActionListener(e -> {
             int r = staffTable.getSelectedRow();
             if (r != -1) {
                 String id = (String) staffTable.getValueAt(r, 0);
-                // 这里需要一个 getStaffById 的方法，确保 Manager 已经实现
-                // showEntryDialog(staffManager.getStaff(id)); 
+                showEntryDialog(staffManager.readStaff(id));
             } else {
                 JOptionPane.showMessageDialog(this, "Select a staff member to update!");
             }
         });
-
         delB.addActionListener(e -> deleteLogic());
 
         bp.add(addB);
         bp.add(upB);
         bp.add(delB);
 
+        // --- 5. 组装布局 ---
+        add(searchPanel, BorderLayout.NORTH);
         add(new JScrollPane(staffTable), BorderLayout.CENTER);
         add(bp, BorderLayout.SOUTH);
 
         refreshData();
     }
 
-    public void refreshData() {
+    // 核心显示逻辑：将 SimpleList 填充到表格
+    private void populateTable(SimpleList<Staff> list) {
         staffModel.setRowCount(0);
-        // 这里假设你的 StaffManager 已经补充了 getAllStaffs() 方法
-        // 它应该调用 StaffDAO.getAll()
-        BPlusTree.SimpleList<Staff> sList = staffManager.getAllStaffs();
-
-        if (sList != null) {
-            for (int i = 0; i < sList.size(); i++) {
-                Staff s = sList.get(i);
-                staffModel.addRow(new Object[]{
-                    s.getId(), s.getName(), s.getPassword(), s.getLocation(),
-                    s.getDepartment(), s.getGender(), s.getEmail()
-                });
-            }
+        if (list == null) {
+            return;
         }
+        for (int i = 0; i < list.size(); i++) {
+            Staff s = list.get(i);
+            staffModel.addRow(new Object[]{
+                s.getId(), s.getName(), s.getPassword(), s.getLocation(),
+                s.getDepartment(), s.getGender(), s.getEmail()
+            });
+        }
+    }
+
+    public void refreshData() {
+        populateTable(staffManager.getAllStaffs());
+    }
+
+    private void performSearch() {
+        String keyword = txtSearch.getText().trim();
+        String type = (String) comboSearchType.getSelectedItem();
+
+        if (keyword.isEmpty()) {
+            refreshData();
+            return;
+        }
+
+        SimpleList<Staff> results;
+        switch (type) {
+            case "ID" ->
+                results = staffManager.searchByID(keyword);
+            case "Name" ->
+                results = staffManager.searchByName(keyword);
+            case "Gender" ->
+                results = staffManager.searchByGender(keyword);
+            default ->
+                results = staffManager.getAllStaffs();
+        }
+        populateTable(results);
     }
 
     private void deleteLogic() {
@@ -98,7 +149,7 @@ public class StaffPanel extends JPanel {
         int confirm = JOptionPane.showConfirmDialog(this, "Delete Staff " + id + "?", "Confirm", JOptionPane.YES_NO_OPTION);
 
         if (confirm == JOptionPane.YES_OPTION) {
-            staffManager.deleteStaff(id); // 触发 B+ 树删除平衡逻辑
+            staffManager.deleteStaff(id);
             refreshData();
         }
     }
@@ -109,17 +160,27 @@ public class StaffPanel extends JPanel {
 
         for (int i = 0; i < STAFF_COLS.length; i++) {
             pane.add(new JLabel(STAFF_COLS[i] + ":"));
+
+            // 逻辑：如果是新建，ID 自动产生；如果是编辑，读取旧值
             String val = (exist == null) ? "" : getFieldValue(exist, i);
+            if (exist == null && i == 0) {
+                val = staffManager.generateNextId(); // 自动生成 ID
+            }
+
             tfs[i] = new JTextField(val);
-            if (i == 0 && exist != null) {
+
+            // 锁定 ID 字段，不允许用户编辑
+            if (i == 0) {
                 tfs[i].setEditable(false);
+                tfs[i].setBackground(new Color(235, 235, 235)); // 灰色背景提示只读
             }
             pane.add(tfs[i]);
         }
 
         if (JOptionPane.showConfirmDialog(null, pane, "Staff Entry", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
-            if (tfs[0].getText().trim().isEmpty() || tfs[1].getText().trim().isEmpty() || tfs[2].getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(this, "ID, Name and Password are mandatory!");
+            // 校验必填项
+            if (tfs[1].getText().trim().isEmpty() || tfs[2].getText().trim().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Name and Password are mandatory!");
                 return;
             }
 
@@ -128,29 +189,36 @@ public class StaffPanel extends JPanel {
                     tfs[3].getText().trim(), tfs[4].getText().trim(), tfs[5].getText().trim(),
                     tfs[6].getText().trim()
             );
-//            staffManager.saveStaff(s); // 调用 Control 层持久化
+
+            if (exist != null) {
+                staffManager.updateStaff(s); // 调用更新逻辑
+                JOptionPane.showMessageDialog(this, "Staff updated!");
+            } else {
+                staffManager.createStaff(s); // 调用创建逻辑
+                JOptionPane.showMessageDialog(this, "Staff added!");
+            }
             refreshData();
         }
     }
 
     private String getFieldValue(Staff s, int i) {
-        switch (i) {
-            case 0:
-                return s.getId();
-            case 1:
-                return s.getName();
-            case 2:
-                return s.getPassword();
-            case 3:
-                return s.getLocation();
-            case 4:
-                return s.getDepartment();
-            case 5:
-                return s.getGender();
-            case 6:
-                return s.getEmail();
-            default:
-                return "";
-        }
+        return switch (i) {
+            case 0 ->
+                s.getId();
+            case 1 ->
+                s.getName();
+            case 2 ->
+                s.getPassword();
+            case 3 ->
+                s.getLocation();
+            case 4 ->
+                s.getDepartment();
+            case 5 ->
+                s.getGender();
+            case 6 ->
+                s.getEmail();
+            default ->
+                "";
+        };
     }
 }

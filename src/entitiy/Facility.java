@@ -99,7 +99,7 @@ public class Facility implements Serializable {
 
     @Override
     public String toString() {
-        return "Facility{" + "id=" + id + ", name=" + name + ", location=" + location + ", venue=" + venue + ", venueType=" + venueType + ", operationTime=" + operationTime + ", capacity=" + capacity + ", status=" + status + '}';
+       return this.name + " (" + this.id + ")";
     }
 
 }

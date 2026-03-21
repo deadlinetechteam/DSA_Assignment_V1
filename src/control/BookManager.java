@@ -52,11 +52,13 @@ public class BookManager {
     public void updateBook(Book updatedBook) {
         Book oldBook = mainTree.read(updatedBook.getId());
         if (oldBook != null) {
-          
-            if (!oldBook.getTitle().equals(updatedBook.getTitle())) {             
+            if (!oldBook.getTitle().equals(updatedBook.getTitle())) {
                 SimpleList<String> oldIds = titleIndex.read(oldBook.getTitle());
                 if (oldIds != null) {
                     oldIds.remove(oldBook.getId());
+                    if (oldIds.size() == 0) {
+                        titleIndex.delete(oldBook.getTitle());
+                    }
                 }
                 addTitleToIndex(updatedBook.getTitle(), updatedBook.getId());
             }
@@ -68,15 +70,13 @@ public class BookManager {
     public void deleteBook(String id) {
         Book b = mainTree.read(id);
         if (b != null) {
-            
             SimpleList<String> ids = titleIndex.read(b.getTitle());
             if (ids != null) {
-                ids.remove(id); 
+                ids.remove(id);
                 if (ids.size() == 0) {
                     titleIndex.delete(b.getTitle());
                 }
             }
-           
             mainTree.delete(id);
         }
     }
@@ -106,6 +106,14 @@ public class BookManager {
         }
     }
 
+    public SimpleList<Book> searchByID(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return getAllBooks();
+        }
+        SimpleList<Book> results = mainTree.searchRange(keyword, keyword + "\uffff");
+        return results;
+    }
+
     public SimpleList<Book> searchByTitle(String keyword) {
         SimpleList<Book> results = new SimpleList<>();
 
@@ -113,21 +121,34 @@ public class BookManager {
             return getAllBooks();
         }
 
-        // 2. 利用 searchRange 进行前缀匹配 (例如输入 "Java" 匹配 "Java 8", "Java Web")
-        // 范围是 [keyword, keyword + 最大字符]
+        // 1. Prefix matching using searchRange
         SimpleList<SimpleList<String>> idLists = titleIndex.searchRange(keyword, keyword + "\uffff");
 
-        // 3. 遍历搜索到的每一个标题对应的 ID 列表 (处理重名)
+        // 3. Iterate through the list of IDs corresponding to each title found in the search 
         for (int i = 0; i < idLists.size(); i++) {
             SimpleList<String> ids = idLists.get(i);
 
-            // 4. 遍历列表里的每一个 ID，执行“回表”操作
+            // 4.Key Lookup operation
             for (int j = 0; j < ids.size(); j++) {
                 String bookId = ids.get(j);
                 Book b = mainTree.read(bookId);
                 if (b != null) {
                     results.add(b);
                 }
+            }
+        }
+        return results;
+    }
+
+    public SimpleList<Book> searchByAvailability(String keyword) {
+        SimpleList<Book> results = new SimpleList<>();
+
+        SimpleList<Book> allBooks = mainTree.sort();
+
+        for (int i = 0; i < allBooks.size(); i++) {
+            Book b = allBooks.get(i);
+            if (b.getAvailability() != null && b.getAvailability().toLowerCase().contains(keyword.toLowerCase())) {
+                results.add(b);
             }
         }
         return results;

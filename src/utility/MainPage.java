@@ -1,26 +1,36 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Main.java to edit this template
+ */
 package utility;
 
+/**
+ *
+ * @author asus-z
+ */
 import javax.swing.*;
 import java.awt.*;
 import boundary.*;
 import control.*;
+import entitiy.Staff;
+import entitiy.Student;
 
 /**
  * Boundary - MainPage
  */
 public class MainPage extends JFrame {
 
-    private CardLayout cardLayout = new CardLayout();
-    private JPanel contentPanel = new JPanel(cardLayout);
+    private final CardLayout cardLayout = new CardLayout();
+    private final JPanel contentPanel = new JPanel(cardLayout);
 
-    private String userRole;
-    private String userId;
+    private final String userRole;
+    private final String userId;
 
     public MainPage(String role, String id) {
         this.userRole = role;
         this.userId = id;
 
-        setTitle("Library Management System - " + role);
+        setTitle("Library & Facility Management System - [" + role + "]");
         setSize(1300, 800);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -30,94 +40,102 @@ public class MainPage extends JFrame {
 
     private void initLayout() {
         setLayout(new BorderLayout());
-        
-        BookManager bookManager = new BookManager();
-        StudentManager studentManager = new StudentManager();
-        StaffManager staffManager = new StaffManager();
-        FacilityManager facilityManager = new FacilityManager();
-        
-        BorrowManager borrowManager = new BorrowManager(bookManager.getTree(), studentManager.getTree());
-        BookingManager bookingManager = new BookingManager(facilityManager.getTree());
-        
-        // --- 1.Sidebar---
+        // --- 1. Initialize all manager---
+        BookManager bookManager = GlobalManager.getBookManager();
+        StudentManager studentManager = GlobalManager.getStudentManager();
+        StaffManager staffManager = GlobalManager.getStaffManager();
+        FacilityManager facilityManager = GlobalManager.getFacilityManager();
+        BorrowManager borrowManager = GlobalManager.getBorrowManager();
+        BookingManager bookingManager = GlobalManager.getBookingManager();
+
+        // --- 2. Initialize all function panels (Boundaries) ---
+        BookPanel bookPanel = new BookPanel(bookManager, userRole);
+        StudentPanel studentPanel = new StudentPanel(studentManager);
+        StaffPanel staffPanel = new StaffPanel(staffManager);
+        FacilityPanel facilityPanel = new FacilityPanel(facilityManager, userRole);
+
+        BorrowPanel borrowPanel = new BorrowPanel(borrowManager, bookManager, userId, userRole);
+        BookingPanel bookingPanel = new BookingPanel(bookingManager, facilityManager, userId, userRole);
+
+        // --- 3. Sidebar Layout ---
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
         sidebar.setBackground(new Color(45, 52, 54));
-        sidebar.setPreferredSize(new Dimension(220, 800));
+        sidebar.setPreferredSize(new Dimension(240, 800));
 
-        // --- 2. Navigation buttons---
+        // Create button
         JButton btnBooks = createMenuBtn("📚 Books Management");
+        JButton btnFacilities = createMenuBtn("🏠 Facilities Management");
+        JButton btnBorrow = createMenuBtn("📖 Borrowing Services");
+        JButton btnBooking = createMenuBtn("📅 Booking Services");
         JButton btnStudents = createMenuBtn("👥 Students Management");
         JButton btnStaff = createMenuBtn("💼 Staff Management");
-        JButton btnFacilities = createMenuBtn("🏠 Facilities Management");
-        JButton btnBorrow = createMenuBtn("📖 Borrowing services"); 
-        JButton btnBooking = createMenuBtn("📅 Booking services"); 
+        JButton btnProfile = createMenuBtn("👤 Profile");
         JButton btnLogout = createMenuBtn("🚪 Log Out");
 
-        // --- 3. Boundaries ---
-        BookPanel bookPanel = new BookPanel(bookManager,userRole);
-        StudentPanel studentPanel = new StudentPanel(studentManager);
-        StaffPanel staffPanel = new StaffPanel(staffManager);
-        FacilityPanel facilityPanel = new FacilityPanel(facilityManager);
-        BorrowPanel borrowPanel = new BorrowPanel(borrowManager);
-        BookingPanel bookingPanel = new BookingPanel(bookingManager);
-        
-        // --- 4. Add a panel to the CardLayout container ---
-        contentPanel.add(bookPanel, "BOOKS");
-        contentPanel.add(studentPanel, "STUDENTS");
-        contentPanel.add(staffPanel, "STAFF");
-        contentPanel.add(facilityPanel, "FACILITIES");
-        contentPanel.add(borrowPanel, "BORROW");
-        contentPanel.add(bookingPanel, "BOOKING");
+        // --- 4. Assemble the sidebar (access control) ---
+        sidebar.add(Box.createVerticalStrut(30)); // Top Spacing
+        addSidebarBtn(sidebar, btnBooks, "BOOKS", bookPanel);
+        addSidebarBtn(sidebar, btnFacilities, "FACILITIES", facilityPanel);
+        addSidebarBtn(sidebar, btnBorrow, "BORROW", borrowPanel);
+        addSidebarBtn(sidebar, btnBooking, "BOOKING", bookingPanel);
 
-        // --- 5. Sidebar assembly (based on role-based control permissions) ---
-        sidebar.add(Box.createVerticalStrut(20));
-        sidebar.add(btnBooks);
-        sidebar.add(btnFacilities);
-        sidebar.add(btnBorrow);
-        sidebar.add(btnBooking);
-
-        if (userRole.equals("Staff")) {
-            sidebar.add(btnStudents);
-            sidebar.add(btnStaff);
+        if ("Staff".equals(userRole)) {
+            addSidebarBtn(sidebar, btnStudents, "STUDENTS", studentPanel);
+            addSidebarBtn(sidebar, btnStaff, "STAFF", staffPanel);
         }
 
         sidebar.add(Box.createVerticalGlue());
+        sidebar.add(btnProfile);
+        sidebar.add(Box.createVerticalStrut(10));
         sidebar.add(btnLogout);
+        sidebar.add(Box.createVerticalStrut(20));
 
-        // --- 6. Navigation switching logic ---
-        btnBooks.addActionListener(e -> switchView("BOOKS", bookPanel));
-        btnFacilities.addActionListener(e -> switchView("FACILITIES", facilityPanel));
-        btnBorrow.addActionListener(e -> switchView("BORROW", borrowPanel));
-        btnBooking.addActionListener(e -> switchView("BOOKING", bookingPanel));
-        btnStudents.addActionListener(e -> switchView("STUDENTS", studentPanel));
-        btnStaff.addActionListener(e -> switchView("STAFF", staffPanel));
-
+        // --- 5. Navigation switching logic ---
+        btnProfile.addActionListener(e -> showProfileDialog());
         btnLogout.addActionListener(e -> {
             new login().setVisible(true);
             this.dispose();
         });
 
-        // --- 6. Top welcome bar --- 
+        // --- 6. Top welcome bar ---
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         topBar.setBackground(Color.WHITE);
-        topBar.add(new JLabel("Current user: " + userId + " [" + userRole + "]  "));
+        topBar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Color.LIGHT_GRAY));
+        JLabel lblUser = new JLabel("Welcome, " + userId + " (" + userRole + ")  ");
+        lblUser.setFont(new Font("SansSerif", Font.BOLD, 14));
+        topBar.add(lblUser);
 
         add(sidebar, BorderLayout.WEST);
         add(contentPanel, BorderLayout.CENTER);
         add(topBar, BorderLayout.NORTH);
+
+        // The first screen is displayed by default.
+        cardLayout.show(contentPanel, "BOOKS");
+    }
+
+    private void addSidebarBtn(JPanel sidebar, JButton btn, String name, JPanel panel) {
+        contentPanel.add(panel, name);
+        btn.addActionListener(e -> switchView(name, panel));
+        sidebar.add(btn);
+        sidebar.add(Box.createVerticalStrut(10));
     }
 
     private void switchView(String name, JPanel panel) {
         cardLayout.show(contentPanel, name);
-        // Key: Forces a data refresh when switching, ensuring that the latest data in the B+ tree and file is displayed.
         switch (panel) {
-            case BookPanel bookPanel -> bookPanel.refreshData();
-            case StudentPanel studentPanel -> studentPanel.refreshData();
-            case StaffPanel staffPanel -> staffPanel.refreshData();
-            case FacilityPanel facilityPanel -> facilityPanel.refreshData();
-            case BorrowPanel borrowPanel -> borrowPanel.refreshData();
-            case BookingPanel bookingPanel -> bookingPanel.refreshData();
+            case BookPanel p ->
+                p.refreshData();
+            case StudentPanel p ->
+                p.refreshData();
+            case StaffPanel p ->
+                p.refreshData();
+            case FacilityPanel p ->
+                p.refreshData();
+            case BorrowPanel p ->
+                p.refreshData();
+            case BookingPanel p ->
+                p.refreshData();
             default -> {
             }
         }
@@ -125,24 +143,86 @@ public class MainPage extends JFrame {
 
     private JButton createMenuBtn(String t) {
         JButton b = new JButton(t);
-        setupButton(b);
-        return b;
-    }
-
-    private void setupButton(JButton b) {
-        b.setMaximumSize(new Dimension(220, 50));
+        b.setMaximumSize(new Dimension(240, 50));
         b.setForeground(Color.WHITE);
         b.setBackground(new Color(45, 52, 54));
         b.setFocusPainted(false);
         b.setBorderPainted(false);
         b.setAlignmentX(Component.CENTER_ALIGNMENT);
         b.setCursor(new Cursor(Cursor.HAND_CURSOR));
-      
+        b.setHorizontalAlignment(SwingConstants.LEFT);
+        b.setMargin(new Insets(0, 20, 0, 0));
+        return b;
+    }
+
+    private void showProfileDialog() {
+        String nameVal = "";
+        String passVal = "";
+        Object userObj = null;
+
+        if ("Staff".equals(userRole)) {
+            Staff s = GlobalManager.getStaffManager().readStaff(userId);
+            if (s != null) {
+                nameVal = s.getName();
+                passVal = s.getPassword();
+                userObj = s;
+            }
+        } else {
+            Student s = GlobalManager.getStudentManager().readStudent(userId);
+            if (s != null) {
+                nameVal = s.getName();
+                passVal = s.getPassword();
+                userObj = s;
+            }
+        }
+
+        if (userObj == null) {
+            JOptionPane.showMessageDialog(this, "Error: User data not found.");
+            return;
+        }
+
+        JPanel pane = new JPanel(new GridLayout(0, 2, 5, 5));
+        JTextField txtName = new JTextField(nameVal);
+        JPasswordField txtPass = new JPasswordField(passVal);
+
+        pane.add(new JLabel("User ID:"));
+        pane.add(new JLabel(userId));
+        pane.add(new JLabel("Your Name:"));
+        pane.add(txtName);
+        pane.add(new JLabel("New Password:"));
+        pane.add(txtPass);
+
+        int result = JOptionPane.showConfirmDialog(this, pane, "Edit My Profile", JOptionPane.OK_CANCEL_OPTION);
+
+        if (result == JOptionPane.OK_OPTION) {
+            String newName = txtName.getText().trim();
+            String newPass = new String(txtPass.getPassword());
+
+            if (newName.isEmpty() || newPass.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Name and Password cannot be empty!");
+                return;
+            }
+
+            if ("Staff".equals(userRole)) {
+                Staff s = (Staff) userObj;
+                s.setName(newName);
+                s.setPassword(newPass);
+                GlobalManager.getStaffManager().updateStaff(s);
+            } else {
+                Student s = (Student) userObj;
+                s.setName(newName);
+                s.setPassword(newPass);
+                GlobalManager.getStudentManager().updateStudent(s);
+            }
+
+            JOptionPane.showMessageDialog(this, "Profile updated successfully!");
+        }
     }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            new MainPage("Staff", "Admin01").setVisible(true);
+            GlobalManager.init();
+            new MainPage("Staff", "S001").setVisible(true);
         });
     }
 }

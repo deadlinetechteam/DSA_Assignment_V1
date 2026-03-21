@@ -8,137 +8,214 @@ package boundary;
  *
  * @author asus-z
  */
-import adt.BPlusTree;
+import adt.BPlusTree.SimpleList;
+import control.BookManager;
 import control.BorrowManager;
+import entitiy.Book;
 import entitiy.BorrowRecord;
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.time.LocalDate;
 
 public class BorrowPanel extends JPanel {
 
     private BorrowManager borrowManager;
-    private final DefaultTableModel borrowModel;
-    private final JTable borrowTable;
+    private BookManager bookManager;
+    private String currentUserId;
+    private String userRole;
+    private boolean isStaff;
 
-    private final String[] BORROW_COLS = {"TX ID", "Book ID", "Title", "Student ID", "Borrow Date", "Due Date", "Status"};
+    // 表格模型
+    private DefaultTableModel bookModel;
+    private DefaultTableModel recordModel;
+    private JTable bookTable;
+    private JTable recordTable;
 
-    public BorrowPanel(BorrowManager borrowManager) {
-        setLayout(new BorderLayout());
+    public BorrowPanel(BorrowManager borrowManager, BookManager bookManager, String userID, String userRole) {
         this.borrowManager = borrowManager;
-        // --- table initialization ---
-        borrowModel = new DefaultTableModel(BORROW_COLS, 0) {
+        this.bookManager = bookManager;
+        this.currentUserId = userID;
+        this.userRole = userRole;
+        this.isStaff = "Staff".equalsIgnoreCase(userRole);
+
+        setLayout(new BorderLayout());
+
+        // 使用 TabbedPane 分成两个视图
+        JTabbedPane tabbedPane = new JTabbedPane();
+        tabbedPane.addTab("📚 Browse Catalog", createCatalogTab());
+        tabbedPane.addTab("📋 Records", createRecordsTab());
+
+        add(tabbedPane, BorderLayout.CENTER);
+        refreshData();
+    }
+
+    // --- Tab 1: 图书馆书架 (借书区) ---
+    private JPanel createCatalogTab() {
+        JPanel panel = new JPanel(new BorderLayout());
+
+        // 书架表格
+        String[] cols = {"Book ID", "Title", "Author", "Language", "Status"};
+        bookModel = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
                 return false;
             }
         };
-        borrowTable = new JTable(borrowModel);
+        bookTable = new JTable(bookModel);
 
-        // --- 操作按钮 ---
+        // 借书按钮
+        JButton btnBorrow = new JButton("Confirm Borrowing Selected Book");
+        btnBorrow.setFont(new Font("SansSerif", Font.BOLD, 14));
+        btnBorrow.setBackground(new Color(46, 204, 113));
+        btnBorrow.setForeground(Color.WHITE);
+
+        btnBorrow.addActionListener(e -> borrowAction());
+
+        panel.add(new JScrollPane(bookTable), BorderLayout.CENTER);
+        panel.add(btnBorrow, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    // --- Tab 2: 借阅记录 (还书/逾期区) ---
+    private JPanel createRecordsTab() {
+        JPanel panel = new JPanel(new BorderLayout());
+
+        String[] cols = {"TX ID", "Book ID", "Title", "Student ID", "Borrow Date", "Due Date", "Status"};
+        recordModel = new DefaultTableModel(cols, 0) {
+            @Override
+            public boolean isCellEditable(int r, int c) {
+                return false;
+            }
+        };
+        recordTable = new JTable(recordModel);
+
+        // --- 核心功能：逾期变红渲染器 ---
+        recordTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object v, boolean isS, boolean hasF, int r, int c) {
+                Component comp = super.getTableCellRendererComponent(t, v, isS, hasF, r, c);
+
+                String dueDateStr = (String) t.getValueAt(r, 5); // Due Date 列
+                String status = (String) t.getValueAt(r, 6);    // Status 列
+
+                // 逻辑：如果是 On Loan 且 今天日期 > Due Date
+                if ("On Loan".equalsIgnoreCase(status)
+                        && LocalDate.now().toString().compareTo(dueDateStr) > 0) {
+                    comp.setForeground(Color.RED);
+                    comp.setFont(comp.getFont().deriveFont(Font.BOLD));
+                } else {
+                    comp.setForeground(Color.BLACK);
+                    comp.setFont(comp.getFont().deriveFont(Font.PLAIN));
+                }
+                return comp;
+            }
+        });
+
+        // 按钮栏
         JPanel bp = new JPanel();
-        JButton btnBorrow = new JButton("New Borrowing");
         JButton btnReturn = new JButton("Return Book");
-        JButton btnRefresh = new JButton("Refresh");
+        JButton btnRefresh = new JButton("Refresh All");
 
-        btnBorrow.addActionListener(e -> showBorrowDialog());
-        btnReturn.addActionListener(e -> returnLogic());
+        btnReturn.addActionListener(e -> returnAction());
         btnRefresh.addActionListener(e -> refreshData());
 
-        bp.add(btnBorrow);
         bp.add(btnReturn);
         bp.add(btnRefresh);
 
-        add(new JScrollPane(borrowTable), BorderLayout.CENTER);
-        add(bp, BorderLayout.SOUTH);
+        panel.add(new JScrollPane(recordTable), BorderLayout.CENTER);
+        panel.add(bp, BorderLayout.SOUTH);
 
-        refreshData();
+        return panel;
     }
 
+    // --- 逻辑：刷新数据 ---
     public void refreshData() {
-        borrowModel.setRowCount(0);
-        // 从 BorrowManager 获取所有借阅记录
-        BPlusTree.SimpleList<BorrowRecord> list = borrowManager.getAllRecords();
-        for (int i = 0; i < list.size(); i++) {
-            BorrowRecord r = list.get(i);
-            borrowModel.addRow(new Object[]{
+        // 1. 刷新书架
+        bookModel.setRowCount(0);
+        SimpleList<Book> books = bookManager.getAllBooks();
+        for (int i = 0; i < books.size(); i++) {
+            Book b = books.get(i);
+            bookModel.addRow(new Object[]{b.getId(), b.getTitle(), b.getAuthors(), b.getLanguage(), b.getAvailability()});
+        }
+
+        // 2. 刷新记录 (根据角色过滤)
+        recordModel.setRowCount(0);
+        SimpleList<BorrowRecord> records;
+        if (isStaff) {
+            records = borrowManager.getAllRecords();
+        } else {
+            // 需要你在 BorrowManager 里实现这个按 ID 过滤的方法
+            records = borrowManager.getRecordsByStudent(currentUserId);
+        }
+
+        for (int i = 0; i < records.size(); i++) {
+            BorrowRecord r = records.get(i);
+            recordModel.addRow(new Object[]{
                 r.getTransactionId(), r.getBookId(), r.getBookTitle(),
                 r.getStudentId(), r.getBorrowDate(), r.getDueDate(), r.getStatus()
             });
         }
     }
 
-    // 借书对话框逻辑
-    private void showBorrowDialog() {
-        // 1. 准备容器和布局
-        JPanel pane = new JPanel(new GridLayout(0, 2, 5, 5));
+    // --- 逻辑：借书动作 ---
+    private void borrowAction() {
+        int row = bookTable.getSelectedRow();
+        if (row == -1) {
+            JOptionPane.showMessageDialog(this, "Please select a book from the shelf!");
+            return;
+        }
 
-        // 2. 处理学生 ID (如果是学生登录，直接锁定 ID，不让改)
-        // 这里的 currentUserId 需要从 MainPage 传给 BorrowPanel 构造函数
-        JTextField txtStudentId = new JTextField(currentUserId);
-        txtStudentId.setEditable(false);
+        String bId = (String) bookTable.getValueAt(row, 0);
+        String status = (String) bookTable.getValueAt(row, 4);
 
-        // 3. 核心：创建图书选择下拉框
-        JComboBox<String> bookSelector = new JComboBox<>();
+        if (!"Available".equalsIgnoreCase(status)) {
+            JOptionPane.showMessageDialog(this, "This book is currently out.");
+            return;
+        }
 
-        // 从 BookManager 获取所有状态为 "Available" 的书籍
-        // 假设你有一个方法获取 SimpleList<Book>
-        var availableBooks = bookManager.getAllBooks();
-        int count = 0;
-        for (int i = 0; i < availableBooks.size(); i++) {
-            var b = availableBooks.get(i);
-            // 只把能借的书加进下拉框
-            if ("Available".equalsIgnoreCase(b.getStatus())) {
-                bookSelector.addItem(b.getId() + " - " + b.getTitle());
-                count++;
+        String studentId = currentUserId;
+        if (isStaff) {
+            studentId = JOptionPane.showInputDialog(this, "Enter Student ID to borrow for:");
+            if (studentId == null || studentId.trim().isEmpty()) {
+                return;
             }
         }
 
-        // 4. 组装弹窗界面
-        pane.add(new JLabel("Student ID:"));
-        pane.add(txtStudentId);
-        pane.add(new JLabel("Select Book:"));
+        // 1. 检查借书上限 (需要 BorrowManager 支持)
+        if (borrowManager.getActiveBorrowCount(studentId) >= 3) {
+            JOptionPane.showMessageDialog(this, "Borrowing Failed: This student already has 3 books!");
+            return;
+        }
 
-        if (count == 0) {
-            pane.add(new JLabel("No books available!"));
+        // 2. 执行借书
+        if (borrowManager.borrowBook(studentId, bId)) {
+            JOptionPane.showMessageDialog(this, "Success! Please return within 14 days.");
+            refreshData();
         } else {
-            pane.add(bookSelector);
-        }
-
-        // 5. 显示对话框
-        int result = JOptionPane.showConfirmDialog(this, pane, "New Borrowing", JOptionPane.OK_CANCEL_OPTION);
-
-        if (result == JOptionPane.OK_OPTION && count > 0) {
-            // 拿到选中的字符串，例如 "B001 - Java Programming"
-            String selectedItem = (String) bookSelector.getSelectedItem();
-            // 拆分出 ID
-            String bId = selectedItem.split(" - ")[0];
-            String sId = txtStudentId.getText().trim();
-
-            // 6. 执行借书逻辑
-            boolean success = borrowManager.borrowBook(sId, bId);
-            if (success) {
-                JOptionPane.showMessageDialog(this, "Borrowing Successful!");
-                refreshData(); // 刷新当前的借阅记录表格
-            } else {
-                JOptionPane.showMessageDialog(this, "System Error: Please try again.");
-            }
+            JOptionPane.showMessageDialog(this, "System Error.");
         }
     }
 
-    // 还书逻辑
-    private void returnLogic() {
-        int r = borrowTable.getSelectedRow();
-        if (r == -1) {
+    // --- 逻辑：还书动作 ---
+    private void returnAction() {
+        int row = recordTable.getSelectedRow();
+        if (row == -1) {
             JOptionPane.showMessageDialog(this, "Select a record to return!");
             return;
         }
 
-        String bookId = (String) borrowTable.getValueAt(r, 1);
-        // 调用 BorrowManager 处理还书逻辑 (恢复 Book 状态)
-        boolean success = borrowManager.returnBook(bookId);
-        if (success) {
-            JOptionPane.showMessageDialog(this, "Book Returned!");
+        String status = (String) recordTable.getValueAt(row, 6);
+        if ("Returned".equalsIgnoreCase(status)) {
+            JOptionPane.showMessageDialog(this, "This book is already returned!");
+            return;
+        }
+
+        String recordId = (String) recordTable.getValueAt(row, 0);
+        if (borrowManager.returnBook(recordId)) {
+            JOptionPane.showMessageDialog(this, "Book Returned Successfully!");
             refreshData();
         }
     }

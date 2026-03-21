@@ -9,6 +9,7 @@ package boundary;
  * @author asus-z
  */
 import adt.BPlusTree;
+import adt.BPlusTree.SimpleList;
 import control.BookManager;
 import entitiy.Book;
 import javax.swing.*;
@@ -21,6 +22,7 @@ public class BookPanel extends JPanel {
     private final DefaultTableModel bookModel;
     private JTable bookTable;
 
+    private final JComboBox<String> comboSearchType;
     private final JTextField txtSearch;
     private final JButton btnSearch;
     private final JButton btnReset;
@@ -31,7 +33,7 @@ public class BookPanel extends JPanel {
         setLayout(new BorderLayout());
         this.bookManager = bookManager;
 
-        // --- Table initialization ---
+        // ---1. Table initialization ---
         bookModel = new DefaultTableModel(BOOK_COLS, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -41,26 +43,27 @@ public class BookPanel extends JPanel {
         bookTable = new JTable(bookModel);
         bookTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 
-// --- 2. **初始化搜索栏 (顶部)** ---
+        // --- 2. **Initialize the search bar (top)** ---
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         String[] searchOptions = {"Title", "ID", "Availability"};
-        JComboBox<String> comboSearchType = new JComboBox<>(searchOptions);
-        txtSearch = new JTextField(20); 
+        comboSearchType = new JComboBox<>(searchOptions);
+        txtSearch = new JTextField(20);
         btnSearch = new JButton("🔍 Search");
         btnReset = new JButton("🔄 Reset");
 
         searchPanel.add(new JLabel("Search By:"));
-        searchPanel.add(comboSearchType); 
+        searchPanel.add(comboSearchType);
         searchPanel.add(new JLabel("Keyword:"));
         searchPanel.add(txtSearch);
         searchPanel.add(btnSearch);
         searchPanel.add(btnReset);
 
-        // --- 3. **绑定搜索和重置事件** ---
-        btnSearch.addActionListener(e -> performSearch()); // 点击搜索
+        // --- 3. **Bind search and reset events** ---
+        btnSearch.addActionListener(e -> performSearch());
+        txtSearch.addActionListener(e -> performSearch());
         btnReset.addActionListener(e -> {
-            txtSearch.setText(""); // 清空输入框
-            refreshData(); // 重新加载全量数据
+            txtSearch.setText("");
+            refreshData();
         });
 
         // --- Operation button panel ---
@@ -96,17 +99,7 @@ public class BookPanel extends JPanel {
     }
 
     public void refreshData() {
-        bookModel.setRowCount(0);
-        BPlusTree.SimpleList<Book> bList = bookManager.getAllBooks();
-
-        for (int i = 0; i < bList.size(); i++) {
-            Book b = bList.get(i);
-            bookModel.addRow(new Object[]{
-                b.getId(), b.getTitle(), b.getAvailability(), b.getLanguage(),
-                b.getAuthors(), b.getPublicationInformation(), b.getEdition(),
-                b.getPublicationDate(), b.getDocumentType(), b.getContentNotes()
-            });
-        }
+        populateTable(bookManager.getAllBooks());
     }
 
     private void deleteLogic() {
@@ -155,7 +148,13 @@ public class BookPanel extends JPanel {
                     tfs[9].getText().trim()
             );
 
-            bookManager.createBook(b);
+            if (exist != null) {
+                bookManager.updateBook(b);
+                JOptionPane.showMessageDialog(this, "Book updated successfully!");
+            } else {
+                bookManager.createBook(b);
+                JOptionPane.showMessageDialog(this, "New book added successfully!");
+            }
             refreshData();
         }
     }
@@ -188,29 +187,35 @@ public class BookPanel extends JPanel {
     }
 
     private void performSearch() {
-        String keyword = txtSearch.getText().trim(); // 拿到关键词并清空空格
+        String keyword = txtSearch.getText().trim(); // Get the keywords and clear the spaces
+        String type = (String) comboSearchType.getSelectedItem();
         if (keyword.isEmpty()) {
-            // 如果关键词是空的，就当是重置，加载全量数据
+
             refreshData();
             return;
         }
+        SimpleList<Book> results;
 
-        // 6. **去数据仓库筛选 (这一步需要 Manager 的支持)**
-        // 假设你的 B+ 树提供了一个简单的包含查询方法
-        // result 需要是一个 SimpleList<Book> 类型，这和你 `refreshData` 里的类型一致
-        var result = bookManager.searchByTitle(keyword);
-
-        // 7. **将筛选结果重新画到表格上 (复用刷新逻辑)**
-        populateTable(result);
+        switch (type) {
+            case "ID" ->
+                results = bookManager.searchByID(keyword);
+            case "Title" ->
+                results = bookManager.searchByTitle(keyword);
+            case "Availability" ->
+                results = bookManager.searchByAvailability(keyword);
+            default ->
+                results = bookManager.getAllBooks();
+        }
+        populateTable(results);
     }
 
     private void populateTable(BPlusTree.SimpleList<Book> list) {
-        bookModel.setRowCount(0); // 擦黑板
+        bookModel.setRowCount(0);
         if (list == null) {
             return;
         }
 
-        // 循环将 Book 对象转换为表格行
+        // Loop through the Book object to convert it into table rows.
         for (int i = 0; i < list.size(); i++) {
             Book b = list.get(i);
             bookModel.addRow(new Object[]{

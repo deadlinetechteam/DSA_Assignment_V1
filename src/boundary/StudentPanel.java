@@ -21,7 +21,7 @@ public class StudentPanel extends JPanel {
     private final DefaultTableModel studentModel;
     private JTable studentTable;
 
-    // --- 搜索组件 ---
+    // --- Search component ---
     private final JComboBox<String> comboSearchType;
     private final JTextField txtSearch;
     private final JButton btnSearch;
@@ -33,7 +33,7 @@ public class StudentPanel extends JPanel {
         setLayout(new BorderLayout());
         this.studentManager = studentManager;
 
-        // --- 1. 表格初始化 ---
+        // --- 1. Table initialization ---
         studentModel = new DefaultTableModel(STUDENT_COLS, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -43,9 +43,8 @@ public class StudentPanel extends JPanel {
         studentTable = new JTable(studentModel);
         studentTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 
-        // --- 2. 初始化搜索栏 (顶部) ---
+        // --- 2. Initialize the search bar (Top) ---
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        // 学生搜索通常按 ID, Name 或 Programme (专业)
         String[] searchOptions = {"Name", "ID", "Programme"};
         comboSearchType = new JComboBox<>(searchOptions);
         txtSearch = new JTextField(15);
@@ -59,15 +58,15 @@ public class StudentPanel extends JPanel {
         searchPanel.add(btnSearch);
         searchPanel.add(btnReset);
 
-        // --- 3. 绑定搜索和重置事件 ---
+        // --- 3. Bind search and reset events ---
         btnSearch.addActionListener(e -> performSearch());
-        txtSearch.addActionListener(e -> performSearch()); // 支持回车搜索
+        txtSearch.addActionListener(e -> performSearch()); 
         btnReset.addActionListener(e -> {
             txtSearch.setText("");
             refreshData();
         });
 
-        // --- 4. 操作按钮面板 (底部) ---
+        // --- 4. Operation button panel (bottom) ---
         JPanel bp = new JPanel();
         JButton addB = new JButton("Add Student");
         JButton upB = new JButton("Update Student");
@@ -89,7 +88,7 @@ public class StudentPanel extends JPanel {
         bp.add(upB);
         bp.add(delB);
 
-        // --- 5. 组装布局 ---
+        // --- 5. Assembly layout ---
         add(searchPanel, BorderLayout.NORTH);
         add(new JScrollPane(studentTable), BorderLayout.CENTER);
         add(bp, BorderLayout.SOUTH);
@@ -97,7 +96,6 @@ public class StudentPanel extends JPanel {
         refreshData();
     }
 
-    // 统一填充表格的方法
     private void populateTable(SimpleList<Student> list) {
         studentModel.setRowCount(0);
         if (list == null) {
@@ -163,15 +161,15 @@ public class StudentPanel extends JPanel {
         for (int i = 0; i < STUDENT_COLS.length; i++) {
             pane.add(new JLabel(STUDENT_COLS[i] + ":"));
 
-            // 自动 ID 逻辑
+            // automatic ID logic
             String val = (exist == null) ? "" : getFieldValue(exist, i);
             if (exist == null && i == 0) {
-                val = studentManager.generateNextId(); // 待会在 Control 层实现
+                val = studentManager.generateNextId(); 
             }
 
             tfs[i] = new JTextField(val);
 
-            // 锁定 ID 字段
+            // Lock ID field
             if (i == 0) {
                 tfs[i].setEditable(false);
                 tfs[i].setBackground(new Color(235, 235, 235));
@@ -180,7 +178,7 @@ public class StudentPanel extends JPanel {
         }
 
         if (JOptionPane.showConfirmDialog(null, pane, "Student Entry", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
-            // 校验必填项 (ID, Name, Password)
+            // Validation required fields (ID, Name, Password)
             if (tfs[1].getText().trim().isEmpty() || tfs[2].getText().trim().isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Name and Password are mandatory!");
                 return;

@@ -82,14 +82,23 @@ public class BorrowManager {
 
     public int getActiveBorrowCount(String studentId) {
         int count = 0;
-        SimpleList<BorrowRecord> all = mainTree.sort();
-        for (int i = 0; i < all.size(); i++) {
-            BorrowRecord r = all.get(i);
-            if (r.getStudentId().equals(studentId) && "On Loan".equalsIgnoreCase(r.getStatus())) {
+        SimpleList<String> txIds = userIndex.read(studentId);
+        if (txIds == null) {
+            return 0;
+        }
+        for (int i = 0; i < txIds.size(); i++) {
+            String txId = txIds.get(i);
+            BorrowRecord r = mainTree.read(txId);
+            if (r != null && "On Loan".equalsIgnoreCase(r.getStatus())) {
                 count++;
             }
         }
         return count;
+    }
+
+    public boolean validateBorrowing(String studentId) {
+        int count = getActiveBorrowCount(studentId);
+        return count < 3;
     }
 
     public SimpleList<BorrowRecord> getRecordsByStudent(String studentId) {
@@ -154,4 +163,5 @@ public class BorrowManager {
             txIds.add(txId);
         }
     }
+
 }

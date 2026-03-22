@@ -21,20 +21,20 @@ public class FacilityPanel extends JPanel {
     private final DefaultTableModel facilityModel;
     private JTable facilityTable;
 
-    // --- 搜索组件 ---
+    // --- Search component ---
     private final JComboBox<String> comboSearchType;
     private final JTextField txtSearch;
     private final JButton btnSearch;
     private final JButton btnReset;
 
-    // 对应字段：ID, Name, Location, Venue, Type, Op Time, Capacity, Status
-    private final String[] FACILITY_COLS = {"ID*", "Name*", "Location", "Venue", "Type", "Op Time*", "Capacity", "Status"};
+    // ID, Name, Location, Venue, Type, Op Time, Capacity, Status
+    private final String[] FACILITY_COLS = {"ID*", "Name*", "Location", "Venue", "Type", "Op Time*(HH:mm)", "Capacity", "Status"};
 
     public FacilityPanel(FacilityManager facilityManager, String userRole) {
         setLayout(new BorderLayout());
         this.facilityManager = facilityManager;
 
-        // --- 1. 表格初始化 ---
+        // --- 1. Table initialization ---
         facilityModel = new DefaultTableModel(FACILITY_COLS, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -44,7 +44,7 @@ public class FacilityPanel extends JPanel {
         facilityTable = new JTable(facilityModel);
         facilityTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 
-        // --- 2. 初始化搜索栏 (顶部) ---
+        // --- 2. Initialize the search bar (top)---
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         String[] searchOptions = {"Name", "ID", "Type", "Status"};
         comboSearchType = new JComboBox<>(searchOptions);
@@ -59,15 +59,15 @@ public class FacilityPanel extends JPanel {
         searchPanel.add(btnSearch);
         searchPanel.add(btnReset);
 
-        // --- 3. 绑定搜索和重置事件 ---
+        // --- 3. Bind search and reset events ---
         btnSearch.addActionListener(e -> performSearch());
-        txtSearch.addActionListener(e -> performSearch()); // 回车搜索
+        txtSearch.addActionListener(e -> performSearch());
         btnReset.addActionListener(e -> {
             txtSearch.setText("");
             refreshData();
         });
 
-        // --- 4. 操作按钮面板 (底部) ---
+        // --- 4. Operation button panel (bottom) ---
         if ("Staff".equals(userRole)) {
             JPanel bp = new JPanel();
             JButton addB = new JButton("Add Facility");
@@ -91,14 +91,13 @@ public class FacilityPanel extends JPanel {
             bp.add(delB);
             add(bp, BorderLayout.SOUTH);
         }
-        // --- 5. 组装布局 ---
+        // --- 5. Assembly layout ---
         add(searchPanel, BorderLayout.NORTH);
         add(new JScrollPane(facilityTable), BorderLayout.CENTER);
 
         refreshData();
     }
 
-    // 统一填充表格的方法
     private void populateTable(SimpleList<Facility> list) {
         facilityModel.setRowCount(0);
         if (list == null) {
@@ -165,7 +164,7 @@ public class FacilityPanel extends JPanel {
         for (int i = 0; i < FACILITY_COLS.length; i++) {
             pane.add(new JLabel(FACILITY_COLS[i] + ":"));
 
-            // 自动 ID 逻辑
+            // Automatic ID logic
             String val = (exist == null) ? "" : getFieldValue(exist, i);
             if (exist == null && i == 0) {
                 val = facilityManager.generateNextId();
@@ -175,7 +174,7 @@ public class FacilityPanel extends JPanel {
             }
             tfs[i] = new JTextField(val);
 
-            // 锁定 ID 字段
+            // Lock ID field
             if (i == 0) {
                 tfs[i].setEditable(false);
                 tfs[i].setBackground(new Color(235, 235, 235));
@@ -185,7 +184,7 @@ public class FacilityPanel extends JPanel {
 
         if (JOptionPane.showConfirmDialog(null, pane, "Facility Entry", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
             try {
-                // 校验必填项
+                // Validation required fields
                 if (tfs[1].getText().trim().isEmpty()) {
                     JOptionPane.showMessageDialog(this, "Facility Name is mandatory!");
                     return;
@@ -202,7 +201,7 @@ public class FacilityPanel extends JPanel {
                 );
 
                 if (exist != null) {
-                    facilityManager.updateFacility(f); // 调用全量更新逻辑
+                    facilityManager.updateFacility(f); 
                     JOptionPane.showMessageDialog(this, "Facility updated successfully!");
                 } else {
                     facilityManager.createFacility(f);

@@ -33,7 +33,7 @@ public class StaffPanel extends JPanel {
         setLayout(new BorderLayout());
         this.staffManager = staffManager;
 
-        // --- 1. 表格初始化 ---
+        // --- 1. Table initialization ---
         staffModel = new DefaultTableModel(STAFF_COLS, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -43,7 +43,7 @@ public class StaffPanel extends JPanel {
         staffTable = new JTable(staffModel);
         staffTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 
-        // --- 2. 初始化搜索栏 (顶部) ---
+        // --- 2. Initialize the search bar (top) ---
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         String[] searchOptions = {"Name", "ID", "Gender"};
         comboSearchType = new JComboBox<>(searchOptions);
@@ -58,15 +58,15 @@ public class StaffPanel extends JPanel {
         searchPanel.add(btnSearch);
         searchPanel.add(btnReset);
 
-        // --- 3. 绑定搜索和重集事件 ---
+        // --- 3. Binding search and reset events ---
         btnSearch.addActionListener(e -> performSearch());
-        txtSearch.addActionListener(e -> performSearch()); // 回车搜索
+        txtSearch.addActionListener(e -> performSearch()); 
         btnReset.addActionListener(e -> {
             txtSearch.setText("");
             refreshData();
         });
 
-        // --- 4. 操作按钮面板 (底部) ---
+        // --- 4. Operation button panel (bottom) ---
         JPanel bp = new JPanel();
         JButton addB = new JButton("Add Staff");
         JButton upB = new JButton("Update Staff");
@@ -88,7 +88,7 @@ public class StaffPanel extends JPanel {
         bp.add(upB);
         bp.add(delB);
 
-        // --- 5. 组装布局 ---
+        // --- 5. Assembly layout ---
         add(searchPanel, BorderLayout.NORTH);
         add(new JScrollPane(staffTable), BorderLayout.CENTER);
         add(bp, BorderLayout.SOUTH);
@@ -96,7 +96,7 @@ public class StaffPanel extends JPanel {
         refreshData();
     }
 
-    // 核心显示逻辑：将 SimpleList 填充到表格
+    // Populate the table with SimpleList.
     private void populateTable(SimpleList<Staff> list) {
         staffModel.setRowCount(0);
         if (list == null) {
@@ -161,24 +161,24 @@ public class StaffPanel extends JPanel {
         for (int i = 0; i < STAFF_COLS.length; i++) {
             pane.add(new JLabel(STAFF_COLS[i] + ":"));
 
-            // 逻辑：如果是新建，ID 自动产生；如果是编辑，读取旧值
+            // If it's a new creation, the ID is automatically generated; if it's an edit, the old value is read.
             String val = (exist == null) ? "" : getFieldValue(exist, i);
             if (exist == null && i == 0) {
-                val = staffManager.generateNextId(); // 自动生成 ID
+                val = staffManager.generateNextId(); 
             }
 
             tfs[i] = new JTextField(val);
 
-            // 锁定 ID 字段，不允许用户编辑
+            // Lock the ID field to prevent users from editing it.
             if (i == 0) {
                 tfs[i].setEditable(false);
-                tfs[i].setBackground(new Color(235, 235, 235)); // 灰色背景提示只读
+                tfs[i].setBackground(new Color(235, 235, 235)); 
             }
             pane.add(tfs[i]);
         }
 
         if (JOptionPane.showConfirmDialog(null, pane, "Staff Entry", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
-            // 校验必填项
+            // Validation required fields
             if (tfs[1].getText().trim().isEmpty() || tfs[2].getText().trim().isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Name and Password are mandatory!");
                 return;
@@ -191,10 +191,10 @@ public class StaffPanel extends JPanel {
             );
 
             if (exist != null) {
-                staffManager.updateStaff(s); // 调用更新逻辑
+                staffManager.updateStaff(s);
                 JOptionPane.showMessageDialog(this, "Staff updated!");
             } else {
-                staffManager.createStaff(s); // 调用创建逻辑
+                staffManager.createStaff(s);
                 JOptionPane.showMessageDialog(this, "Staff added!");
             }
             refreshData();

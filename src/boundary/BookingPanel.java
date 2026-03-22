@@ -55,7 +55,7 @@ public class BookingPanel extends JPanel {
             searchBar.add(btnSearch);
             add(searchBar, BorderLayout.NORTH);
         }
-        // --- 1. 表格初始化 (管理视图) ---
+        // --- 1. Table initialization (administration view) ---
         bookingModel = new DefaultTableModel(BOOKING_COLS, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -64,7 +64,7 @@ public class BookingPanel extends JPanel {
         };
         bookingTable = new JTable(bookingModel);
 
-        // --- 2. 操作按钮 ---
+        // --- 2. Operation buttons ---
         JPanel bp = new JPanel();
         JButton btnNewBooking = new JButton("➕ New Booking");
         JButton btnCancel = new JButton("❌ Cancel Booking");
@@ -94,11 +94,11 @@ public class BookingPanel extends JPanel {
     }
 
     private void showBookingDialog() {
-        // --- 第一步：前置选择窗口 ---
+        // ---Step 1: Preview Selection Window ---
         JPanel pickPane = new JPanel(new GridLayout(0, 2, 5, 5));
 
-        // 获取所有设施
-        SimpleList<Facility> facilities = facilityManager.getAllFacilities();
+        // Get all facilities
+        SimpleList<Facility> facilities = facilityManager.searchByStatus("Available");
         if (facilities.size() == 0) {
             JOptionPane.showMessageDialog(this, "No facilities available!");
             return;
@@ -151,7 +151,6 @@ public class BookingPanel extends JPanel {
             } else {
                 b.setBackground(Color.GREEN);
                 b.addActionListener(e -> {
-
                     handleSlotClick(s.getTimeLabel(), f, date, gridDialog, allButtons, slots);
                 });
             }
@@ -163,7 +162,7 @@ public class BookingPanel extends JPanel {
         gridDialog.setVisible(true);
     }
 
-    // 辅助：由于选的是格子起点，结束时间是该起点 +30min
+    // Note: Since the starting point of the grid was selected, the end time is the starting point + 30 minutes.
     private String calculateEndTime(String startTime) {
         String[] parts = startTime.split(":");
         int h = Integer.parseInt(parts[0]);
@@ -191,40 +190,40 @@ public class BookingPanel extends JPanel {
     private void handleSlotClick(String clickedTime, Facility f, String date, JDialog gridDialog, JButton[] allButtons, SimpleList<SlotStatus> slots) {
         if (startSlot == null) {
             startSlot = clickedTime;
-            updateGridColors(allButtons, slots,clickedTime);
+            updateGridColors(allButtons, slots);
         } else {
-            String endSlot = calculateEndTime(clickedTime); // 补足最后 30 分钟
+            String endSlot = calculateEndTime(clickedTime);
 
-            // 逻辑 A: 检查是否点回去了
+            // Logic A: Check if the clicked back was successful.
             if (clickedTime.compareTo(startSlot) < 0) {
                 startSlot = clickedTime;
-                updateGridColors(allButtons, slots, null);
+                updateGridColors(allButtons, slots);
                 return;
             }
 
-            // --- 核心修改点：调用 Manager 检查时长 ---
             if (!bookingManager.isDurationValid(startSlot, endSlot)) {
                 JOptionPane.showMessageDialog(gridDialog,
                         "Booking limit exceeded! Maximum 2 hours (4 slots) per booking.",
                         "Time Limit", JOptionPane.WARNING_MESSAGE);
 
-                startSlot = null; // 重置选择
-                updateGridColors(allButtons, slots, null);
+                startSlot = null;
+                updateGridColors(allButtons, slots);
                 return;
             }
 
-            // 逻辑 B: 检查中间是否有冲突（红格）
+            // Logic B: Check for conflicts in the middle (red square)
             if (bookingManager.isRangeAvailable(f.getId(), date, startSlot, endSlot)) {
                 confirmFinalBooking(f, date, startSlot, endSlot, gridDialog);
+                startSlot = null;
             } else {
                 JOptionPane.showMessageDialog(gridDialog, "Conflict detected in selected range!");
                 startSlot = null;
-                updateGridColors(allButtons, slots, null);
+                updateGridColors(allButtons, slots);
             }
         }
     }
 
-    private void updateGridColors(JButton[] buttons, SimpleList<SlotStatus> slots, String currentClick) {
+    private void updateGridColors(JButton[] buttons, SimpleList<SlotStatus> slots) {
         if (buttons == null || slots == null) {
             return;
         }
@@ -234,23 +233,13 @@ public class BookingPanel extends JPanel {
                 continue;
             }
 
-            // 只有可用的格子参与变色逻辑
+            // Only available cells participate in the color-changing logic
             if (slots.get(i).isAvailable()) {
                 String slotTime = slots.get(i).getTimeLabel();
 
-                if (startSlot != null && currentClick != null) {
-                    // 如果已经选了起点，且正在尝试选终点
-                    // 将 [startSlot, currentClick] 之间的格子全部涂黄
-                    if (slotTime.compareTo(startSlot) >= 0 && slotTime.compareTo(currentClick) <= 0) {
-                        buttons[i].setBackground(Color.YELLOW);
-                    } else {
-                        buttons[i].setBackground(Color.GREEN);
-                    }
-                } else if (startSlot != null && slotTime.equals(startSlot)) {
-                    // 只选了起点
+                if (startSlot != null && slotTime.equals(startSlot)) {
                     buttons[i].setBackground(Color.YELLOW);
                 } else {
-                    // 没选或已重置
                     buttons[i].setBackground(Color.GREEN);
                 }
             }
@@ -260,10 +249,9 @@ public class BookingPanel extends JPanel {
     private void confirmFinalBooking(Facility f, String date, String start, String end, JDialog gridDialog) {
         String userId;
         if ("Staff".equals(userRole)) {
-            // 如果是 Staff 帮学生订，还是需要输入学生 ID
             userId = JOptionPane.showInputDialog(gridDialog, "Booking for Student (Enter ID):");
         } else {
-            // 如果是 Student 自己订，直接拿 currentUserId，一秒都不耽误
+
             userId = this.currentUserId;
         }
 
@@ -277,7 +265,7 @@ public class BookingPanel extends JPanel {
                 JOptionPane.showMessageDialog(gridDialog, "Booking Failed. Please try again.");
             }
         }
-        startSlot = null; // 无论成功失败，操作结束都要重置
+        startSlot = null;
     }
 
     private void performSearch() {

@@ -27,7 +27,7 @@ public class GlobalManager {
             facilityManager = new FacilityManager();
 
             borrowManager = new BorrowManager(bookManager.getTree(), studentManager.getTree());
-            bookingManager = new BookingManager(facilityManager.getTree());
+            bookingManager = new BookingManager(facilityManager.getTree(),studentManager.getTree());
         }
     }
 

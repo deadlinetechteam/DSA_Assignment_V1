@@ -21,7 +21,6 @@ public class StaffPanel extends JPanel {
     private final DefaultTableModel staffModel;
     private JTable staffTable;
 
-    // 搜索组件
     private JComboBox<String> comboSearchType;
     private final JTextField txtSearch;
     private final JButton btnSearch;

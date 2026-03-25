@@ -132,8 +132,7 @@ public class StudentPanel extends JPanel {
 
         return reportPanel;
     }
-
-    // 修改 refreshData，让它同时刷新表格和报表
+    
     public void refreshData() {
         SimpleList<Student> all = studentManager.getAllStudents();
         populateTable(all);
@@ -150,19 +149,15 @@ public class StudentPanel extends JPanel {
 
         SimpleList<Object[]> reportData = studentManager.getProgrammeReport();
 
-        // 4. 循环将每一行数据添加到表格模型中
         if (reportData != null) {
             for (int i = 0; i < reportData.size(); i++) {
-                // 拿到每一行 [String, int, String]
                 Object[] row = reportData.get(i);
 
-                // 直接添加到 UI 的 tableModel 里
                 reportModel.addRow(row);
             }
         }
     }
 
-    // ... 这里保留你原有的 populateTable, performSearch, deleteLogic, showEntryDialog, getFieldValue 方法 ...
     private void populateTable(SimpleList<Student> list) {
         studentModel.setRowCount(0);
         if (list == null) {

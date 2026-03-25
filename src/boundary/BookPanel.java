@@ -30,7 +30,7 @@ public class BookPanel extends JPanel {
     // --- Report component (New) ---
     private DefaultTableModel reportModel;
     private JLabel lblTotalBooks;
-    private final boolean isStaff; // 用于判断权限
+    private final boolean isStaff; 
 
     private final String[] BOOK_COLS = {"ID*", "Title*", "Availability", "Category", "Authors", "Pub Info", "Edition", "Pub Date", "Doc Type", "Notes"};
 
@@ -39,17 +39,16 @@ public class BookPanel extends JPanel {
         this.isStaff = "Staff".equalsIgnoreCase(userRole);
         setLayout(new BorderLayout());
 
-        // --- 核心改动：使用 TabbedPane ---
         JTabbedPane tabbedPane = new JTabbedPane();
 
-        // 1. 初始化搜索组件 (因为在 createManagementTab 中需要用到)
+        // 1. Initialize the search component 
         String[] searchOptions = {"Title", "ID", "Availability", "Category"};
         comboSearchType = new JComboBox<>(searchOptions);
         txtSearch = new JTextField(20);
         btnSearch = new JButton("🔍 Search");
         btnReset = new JButton("🔄 Reset");
 
-        // 2. 初始化表格
+        // 2. Initialize the table
         bookModel = new DefaultTableModel(BOOK_COLS, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -59,10 +58,10 @@ public class BookPanel extends JPanel {
         bookTable = new JTable(bookModel);
         bookTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 
-        // 3. 添加 Tab
+        // 3. add Tab
         tabbedPane.addTab("📚 Book Catalog", createManagementTab(userRole));
 
-        // --- 权限控制：只有 Staff 能看到 Report ---
+        // --- Access control: Only staff can see the report ---
         if (isStaff) {
             tabbedPane.addTab("📊 Category Report", createReportTab());
         }
@@ -71,7 +70,7 @@ public class BookPanel extends JPanel {
         refreshData();
     }
 
-    // --- Tab 1: 原有的管理/查询页面 ---
+    // --- Tab 1: management page ---
     private JPanel createManagementTab(String userRole) {
         JPanel panel = new JPanel(new BorderLayout());
 
@@ -94,7 +93,7 @@ public class BookPanel extends JPanel {
         panel.add(searchPanel, BorderLayout.NORTH);
         panel.add(new JScrollPane(bookTable), BorderLayout.CENTER);
 
-        // Buttons (只有 Staff 可见)
+        // Buttons 
         if (isStaff) {
             JPanel bp = new JPanel();
             JButton addB = new JButton("Add Book");
@@ -122,7 +121,7 @@ public class BookPanel extends JPanel {
         return panel;
     }
 
-    // --- Tab 2: 新增的报表页面 ---
+    // --- Tab 2: Report page ---
     private JPanel createReportTab() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
@@ -139,12 +138,9 @@ public class BookPanel extends JPanel {
         return panel;
     }
 
-    // 修改 refreshData 联动刷新
     public void refreshData() {
-        // 1. 刷新主表
         populateTable(bookManager.getAllBooks());
-
-        // 2. 只有 Staff 且 reportModel 已初始化时刷新报表
+        
         if (isStaff && reportModel != null) {
             updateReport();
         }

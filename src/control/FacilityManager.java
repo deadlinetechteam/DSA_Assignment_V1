@@ -11,11 +11,13 @@ package control;
 import entitiy.Facility;
 import adt.BPlusTree;
 import adt.BPlusTree.SimpleList;
+import utility.IndexHelper;
 
 public class FacilityManager {
 
     private final BPlusTree<String, Facility> mainTree;
     private BPlusTree<String, SimpleList<String>> nameIndex;
+    private BPlusTree<String, SimpleList<String>> venueTypeIndex;
     private int nextIdNum;
 
     public FacilityManager() {
@@ -45,7 +47,8 @@ public class FacilityManager {
 
     public void createFacility(Facility newFacility) {
         mainTree.create(newFacility.getId(), newFacility);
-        addNameToIndex(newFacility.getName(), newFacility.getId());
+        IndexHelper.addToIndex(nameIndex,newFacility.getName(), newFacility.getId());
+        IndexHelper.addToIndex(venueTypeIndex,newFacility.getVenueType(), newFacility.getId());
     }
 
     public Facility readFacility(String id) {
@@ -56,8 +59,12 @@ public class FacilityManager {
         Facility oldFacility = mainTree.read(updatedFacility.getId());
         if (oldFacility != null) {
             if (!oldFacility.getName().equals(updatedFacility.getName())) {
-                removeNameFromIndex(oldFacility.getName(), oldFacility.getId());
-                addNameToIndex(updatedFacility.getName(), updatedFacility.getId());
+                IndexHelper.removeFromIndex(nameIndex,oldFacility.getName(), oldFacility.getId());
+                IndexHelper.addToIndex(nameIndex,updatedFacility.getName(), updatedFacility.getId());
+            }
+            if (!oldFacility.getVenueType().equals(updatedFacility.getVenueType())) {
+                IndexHelper.removeFromIndex(venueTypeIndex,oldFacility.getVenueType(), oldFacility.getId());
+                IndexHelper.addToIndex(venueTypeIndex,updatedFacility.getVenueType(), updatedFacility.getId());
             }
         }
         mainTree.update(updatedFacility.getId(), updatedFacility);
@@ -66,7 +73,8 @@ public class FacilityManager {
     public void deleteFacility(String id) {
         Facility f = mainTree.read(id);
         if (f != null) {
-            removeNameFromIndex(f.getName(), id);
+            IndexHelper.removeFromIndex(nameIndex,f.getName(), id);
+            IndexHelper.removeFromIndex(venueTypeIndex,f.getVenueType(), f.getId());
             mainTree.delete(id);
         }
     }
@@ -118,12 +126,17 @@ public class FacilityManager {
         return results;
     }
 
-    public SimpleList<Facility> searchByVenueType(String type) {
+    public SimpleList<Facility> searchByVenueType(String keyword) {
         SimpleList<Facility> results = new SimpleList<>();
-        SimpleList<Facility> all = mainTree.sort();
-        for (int i = 0; i < all.size(); i++) {
-            if (all.get(i).getVenueType().toLowerCase().contains(type.toLowerCase())) {
-                results.add(all.get(i));
+        SimpleList<SimpleList<String>> idLists = venueTypeIndex.searchRange(keyword, keyword + "\uffff");
+
+        for (int i = 0; i < idLists.size(); i++) {
+            SimpleList<String> ids = idLists.get(i);
+            for (int j = 0; j < ids.size(); j++) {
+                Facility f = mainTree.read(ids.get(j));
+                if (f != null) {
+                    results.add(f);
+                }
             }
         }
         return results;
@@ -142,31 +155,43 @@ public class FacilityManager {
 
     private void rebuildIndex() {
         this.nameIndex = new BPlusTree<>(10);
+        this.venueTypeIndex = new BPlusTree<>(10);
         SimpleList<Facility> all = mainTree.sort();
         for (int i = 0; i < all.size(); i++) {
             Facility f = all.get(i);
-            addNameToIndex(f.getName(), f.getId());
+            IndexHelper.addToIndex(nameIndex,f.getName(), f.getId());
+            IndexHelper.addToIndex(venueTypeIndex,f.getVenueType(), f.getId());
         }
     }
+    
+    public SimpleList<Object[]> getVenueTypeReport() {
+        if (venueTypeIndex == null) {
+            return new SimpleList<>();
+        }
 
-    private void addNameToIndex(String name, String id) {
-        SimpleList<String> ids = nameIndex.read(name);
-        if (ids == null) {
-            ids = new SimpleList<>();
-            nameIndex.create(name, ids);
-        }
-        if (!ids.contains(id)) {
-            ids.add(id);
-        }
-    }
+        SimpleList<String> allTypes = venueTypeIndex.sortKeys();
+        SimpleList<SimpleList<String>> allValueLists = venueTypeIndex.sort();
 
-    private void removeNameFromIndex(String name, String id) {
-        SimpleList<String> ids = nameIndex.read(name);
-        if (ids != null) {
-            ids.remove(id);
-            if (ids.size() == 0) {
-                nameIndex.delete(name);
-            }
+        // Calculate the total number of facilities
+        int totalFacilities = 0;
+        for (int i = 0; i < allValueLists.size(); i++) {
+            totalFacilities += allValueLists.get(i).size();
+
         }
+
+        // Encapsulation result [Type name, Quantity, Percentage]
+        SimpleList<Object[]> reportRows = new SimpleList<>();
+        for (int i = 0; i < allTypes.size(); i++) {
+            String typeName = allTypes.get(i);
+            int count = allValueLists.get(i).size();
+            double percent = (totalFacilities == 0) ? 0 : (count * 100.0 / totalFacilities);
+
+            reportRows.add(new Object[]{
+                typeName,
+                count,
+                String.format("%.2f%%", percent)
+            });
+        }
+        return reportRows;
     }
 }

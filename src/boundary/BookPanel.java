@@ -8,7 +8,6 @@ package boundary;
  *
  * @author asus-z
  */
-import adt.BPlusTree;
 import adt.BPlusTree.SimpleList;
 import control.BookManager;
 import entitiy.Book;
@@ -22,18 +21,35 @@ public class BookPanel extends JPanel {
     private final DefaultTableModel bookModel;
     private JTable bookTable;
 
+    // --- Search component ---
     private final JComboBox<String> comboSearchType;
     private final JTextField txtSearch;
     private final JButton btnSearch;
     private final JButton btnReset;
 
-    private final String[] BOOK_COLS = {"ID*", "Title*", "Availability", "Language", "Authors", "Pub Info", "Edition", "Pub Date", "Doc Type", "Notes"};
+    // --- Report component (New) ---
+    private DefaultTableModel reportModel;
+    private JLabel lblTotalBooks;
+    private final boolean isStaff; // 用于判断权限
+
+    private final String[] BOOK_COLS = {"ID*", "Title*", "Availability", "Category", "Authors", "Pub Info", "Edition", "Pub Date", "Doc Type", "Notes"};
 
     public BookPanel(BookManager bookManager, String userRole) {
-        setLayout(new BorderLayout());
         this.bookManager = bookManager;
+        this.isStaff = "Staff".equalsIgnoreCase(userRole);
+        setLayout(new BorderLayout());
 
-        // ---1. Table initialization ---
+        // --- 核心改动：使用 TabbedPane ---
+        JTabbedPane tabbedPane = new JTabbedPane();
+
+        // 1. 初始化搜索组件 (因为在 createManagementTab 中需要用到)
+        String[] searchOptions = {"Title", "ID", "Availability", "Category"};
+        comboSearchType = new JComboBox<>(searchOptions);
+        txtSearch = new JTextField(20);
+        btnSearch = new JButton("🔍 Search");
+        btnReset = new JButton("🔄 Reset");
+
+        // 2. 初始化表格
         bookModel = new DefaultTableModel(BOOK_COLS, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -43,14 +59,24 @@ public class BookPanel extends JPanel {
         bookTable = new JTable(bookModel);
         bookTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 
-        // --- 2. **Initialize the search bar (top)** ---
-        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        String[] searchOptions = {"Title", "ID", "Availability"};
-        comboSearchType = new JComboBox<>(searchOptions);
-        txtSearch = new JTextField(20);
-        btnSearch = new JButton("🔍 Search");
-        btnReset = new JButton("🔄 Reset");
+        // 3. 添加 Tab
+        tabbedPane.addTab("📚 Book Catalog", createManagementTab(userRole));
 
+        // --- 权限控制：只有 Staff 能看到 Report ---
+        if (isStaff) {
+            tabbedPane.addTab("📊 Category Report", createReportTab());
+        }
+
+        add(tabbedPane, BorderLayout.CENTER);
+        refreshData();
+    }
+
+    // --- Tab 1: 原有的管理/查询页面 ---
+    private JPanel createManagementTab(String userRole) {
+        JPanel panel = new JPanel(new BorderLayout());
+
+        // Search Panel
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         searchPanel.add(new JLabel("Search By:"));
         searchPanel.add(comboSearchType);
         searchPanel.add(new JLabel("Keyword:"));
@@ -58,7 +84,6 @@ public class BookPanel extends JPanel {
         searchPanel.add(btnSearch);
         searchPanel.add(btnReset);
 
-        // --- 3. **Bind search and reset events** ---
         btnSearch.addActionListener(e -> performSearch());
         txtSearch.addActionListener(e -> performSearch());
         btnReset.addActionListener(e -> {
@@ -66,15 +91,16 @@ public class BookPanel extends JPanel {
             refreshData();
         });
 
-        // --- Operation button panel ---
-        if ("Staff".equals(userRole)) {
-            JPanel bp = new JPanel();
+        panel.add(searchPanel, BorderLayout.NORTH);
+        panel.add(new JScrollPane(bookTable), BorderLayout.CENTER);
 
+        // Buttons (只有 Staff 可见)
+        if (isStaff) {
+            JPanel bp = new JPanel();
             JButton addB = new JButton("Add Book");
             JButton upB = new JButton("Update Book");
             JButton delB = new JButton("Delete Book");
 
-            // Button event binding
             addB.addActionListener(e -> showEntryDialog(null));
             upB.addActionListener(e -> {
                 int r = bookTable.getSelectedRow();
@@ -90,16 +116,51 @@ public class BookPanel extends JPanel {
             bp.add(addB);
             bp.add(upB);
             bp.add(delB);
-
-            add(bp, BorderLayout.SOUTH);
+            panel.add(bp, BorderLayout.SOUTH);
         }
-        add(searchPanel, BorderLayout.NORTH);
-        add(new JScrollPane(bookTable), BorderLayout.CENTER);
-        refreshData();
+
+        return panel;
     }
 
+    // --- Tab 2: 新增的报表页面 ---
+    private JPanel createReportTab() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        lblTotalBooks = new JLabel("Total Books: 0");
+        lblTotalBooks.setFont(new Font("SansSerif", Font.BOLD, 18));
+        panel.add(lblTotalBooks, BorderLayout.NORTH);
+
+        String[] cols = {"Category", "Book Count", "Percentage (%)"};
+        reportModel = new DefaultTableModel(cols, 0);
+        JTable reportTable = new JTable(reportModel);
+
+        panel.add(new JScrollPane(reportTable), BorderLayout.CENTER);
+        return panel;
+    }
+
+    // 修改 refreshData 联动刷新
     public void refreshData() {
+        // 1. 刷新主表
         populateTable(bookManager.getAllBooks());
+
+        // 2. 只有 Staff 且 reportModel 已初始化时刷新报表
+        if (isStaff && reportModel != null) {
+            updateReport();
+        }
+    }
+
+    private void updateReport() {
+        reportModel.setRowCount(0);
+        SimpleList<Object[]> data = bookManager.getCategoryReport();
+        int total = 0;
+
+        for (int i = 0; i < data.size(); i++) {
+            Object[] row = data.get(i);
+            reportModel.addRow(row);
+            total += (int) row[1];
+        }
+        lblTotalBooks.setText("Total Books in Library: " + total);
     }
 
     private void deleteLogic() {
@@ -168,7 +229,7 @@ public class BookPanel extends JPanel {
             case 2 ->
                 b.getAvailability();
             case 3 ->
-                b.getLanguage();
+                b.getCategory();
             case 4 ->
                 b.getAuthors();
             case 5 ->
@@ -203,13 +264,15 @@ public class BookPanel extends JPanel {
                 results = bookManager.searchByTitle(keyword);
             case "Availability" ->
                 results = bookManager.searchByAvailability(keyword);
+            case "Category" ->
+                results = bookManager.searchByCategory(keyword);
             default ->
                 results = bookManager.getAllBooks();
         }
         populateTable(results);
     }
 
-    private void populateTable(BPlusTree.SimpleList<Book> list) {
+    private void populateTable(SimpleList<Book> list) {
         bookModel.setRowCount(0);
         if (list == null) {
             return;
@@ -220,10 +283,9 @@ public class BookPanel extends JPanel {
             Book b = list.get(i);
             bookModel.addRow(new Object[]{
                 b.getId(), b.getTitle(), b.getAvailability(),
-                b.getLanguage(), b.getAuthors(), b.getPublicationInformation(),
+                b.getCategory(), b.getAuthors(), b.getPublicationInformation(),
                 b.getEdition(), b.getPublicationDate(), b.getDocumentType(), b.getContentNotes()
             });
         }
     }
-
 }

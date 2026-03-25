@@ -15,7 +15,7 @@ public class Book implements Serializable {
     private String id;
     private String title;
     private String availability;
-    private String language;
+    private String category;
     private String authors;
     private String publicationInformation;
     private String edition;
@@ -24,11 +24,11 @@ public class Book implements Serializable {
     private String contentNotes;
     private static final long serialVersionUID = 1L;
 
-    public Book(String id, String title, String availability, String language, String authors, String publicationInformation, String edition, String publicationDate, String documentType, String contentNotes) {
+    public Book(String id, String title, String availability, String category, String authors, String publicationInformation, String edition, String publicationDate, String documentType, String contentNotes) {
         this.id = id;
         this.title = title;
         this.availability = availability;
-        this.language = language;
+        this.category = category;
         this.authors = authors;
         this.publicationInformation = publicationInformation;
         this.edition = edition;
@@ -49,8 +49,8 @@ public class Book implements Serializable {
         return availability;
     }
 
-    public String getLanguage() {
-        return language;
+    public String getCategory() {
+        return category;
     }
 
     public String getAuthors() {
@@ -89,8 +89,8 @@ public class Book implements Serializable {
         this.availability = availability;
     }
 
-    public void setLanguage(String language) {
-        this.language = language;
+    public void setcategory(String category) {
+        this.category = category;
     }
 
     public void setAuthors(String authors) {
@@ -119,7 +119,7 @@ public class Book implements Serializable {
 
     @Override
     public String toString() {
-        return "Book{" + "id=" + id + ", title=" + title + ", availability=" + availability + ", language=" + language + ", authors=" + authors + ", publicationInformation=" + publicationInformation + ", edition=" + edition + ", publicationDate=" + publicationDate + ", documentType=" + documentType + ", contentNotes=" + contentNotes + '}';
+        return "Book{" + "id=" + id + ", title=" + title + ", availability=" + availability + ", category=" + category + ", authors=" + authors + ", publicationInformation=" + publicationInformation + ", edition=" + edition + ", publicationDate=" + publicationDate + ", documentType=" + documentType + ", contentNotes=" + contentNotes + '}';
     }
 
 }

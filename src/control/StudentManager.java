@@ -11,6 +11,7 @@ package control;
 import entitiy.Student;
 import adt.BPlusTree;
 import adt.BPlusTree.SimpleList;
+import utility.IndexHelper;
 
 public class StudentManager {
 
@@ -67,8 +68,8 @@ public class StudentManager {
 
     public void createStudent(Student s) {
         mainTree.create(s.getId(), s);
-        addNameToIndex(s.getName(), s.getId());
-        addProgrammeToIndex(s.getProgramme(), s.getId());
+        IndexHelper.addToIndex(nameIndex,s.getName(), s.getId());
+        IndexHelper.addToIndex(programmeIndex,s.getProgramme(), s.getId());
     }
 
     public Student readStudent(String id) {
@@ -80,13 +81,13 @@ public class StudentManager {
         if (oldS != null) {
             // If the name changes, update the name index.
             if (!oldS.getName().equals(updatedS.getName())) {
-                removeFromIndex(nameIndex, oldS.getName(), oldS.getId());
-                addNameToIndex(updatedS.getName(), updatedS.getId());
+                IndexHelper.removeFromIndex(nameIndex, oldS.getName(), oldS.getId());
+                IndexHelper.addToIndex(nameIndex,updatedS.getName(), updatedS.getId());
             }
             // If your major changes, update the major index.
             if (!oldS.getProgramme().equals(updatedS.getProgramme())) {
-                removeFromIndex(programmeIndex, oldS.getProgramme(), oldS.getId());
-                addProgrammeToIndex(updatedS.getProgramme(), updatedS.getId());
+                IndexHelper.removeFromIndex(programmeIndex, oldS.getProgramme(), oldS.getId());
+                IndexHelper.addToIndex(programmeIndex,updatedS.getProgramme(), updatedS.getId());
             }
         }
         mainTree.update(updatedS.getId(), updatedS);
@@ -95,8 +96,8 @@ public class StudentManager {
     public void deleteStudent(String id) {
         Student s = mainTree.read(id);
         if (s != null) {
-            removeFromIndex(nameIndex, s.getName(), id);
-            removeFromIndex(programmeIndex, s.getProgramme(), id);
+            IndexHelper.removeFromIndex(nameIndex, s.getName(), id);
+            IndexHelper.removeFromIndex(programmeIndex, s.getProgramme(), id);
             mainTree.delete(id);
         }
     }
@@ -133,42 +134,11 @@ public class StudentManager {
         SimpleList<Student> all = mainTree.sort();
         for (int i = 0; i < all.size(); i++) {
             Student s = all.get(i);
-            addNameToIndex(s.getName(), s.getId());
-            addProgrammeToIndex(s.getProgramme(), s.getId());
+            IndexHelper.addToIndex(nameIndex,s.getName(), s.getId());
+            IndexHelper.addToIndex(programmeIndex,s.getProgramme(), s.getId());
         }
     }
 
-    private void addNameToIndex(String name, String id) {
-        SimpleList<String> ids = nameIndex.read(name);
-        if (ids == null) {
-            ids = new SimpleList<>();
-            nameIndex.create(name, ids);
-        }
-        if (!ids.contains(id)) {
-            ids.add(id);
-        }
-    }
-
-    private void addProgrammeToIndex(String prog, String id) {
-        SimpleList<String> ids = programmeIndex.read(prog);
-        if (ids == null) {
-            ids = new SimpleList<>();
-            programmeIndex.create(prog, ids);
-        }
-        if (!ids.contains(id)) {
-            ids.add(id);
-        }
-    }
-
-    private void removeFromIndex(BPlusTree<String, SimpleList<String>> index, String key, String id) {
-        SimpleList<String> ids = index.read(key);
-        if (ids != null) {
-            ids.remove(id);
-            if (ids.size() == 0) {
-                index.delete(key);
-            }
-        }
-    }
 
     private SimpleList<Student> searchFromSecondaryIndex(BPlusTree<String, SimpleList<String>> index, String keyword) {
         SimpleList<Student> results = new SimpleList<>();
@@ -185,4 +155,32 @@ public class StudentManager {
         return results;
     }
 
+    public SimpleList<Object[]> getProgrammeReport() {
+        var allEntries = programmeIndex.sort();
+        SimpleList<String> allProgNames = programmeIndex.sortKeys();
+        // Calculate the total number of people (Total)
+        int totalStudents = 0;
+        for (int i = 0; i < allEntries.size(); i++) {
+            totalStudents += allEntries.get(i).size();
+        }
+
+        // 3. Build report row data
+        SimpleList<Object[]> reportRows = new SimpleList<>();
+        for (int i = 0; i < allEntries.size(); i++) {
+            var entry = allEntries.get(i);
+            String programmeName = allProgNames.get(i);
+            int count = entry.size();
+
+            // Calculate percentage
+            double percent = (totalStudents == 0) ? 0 : (count * 100.0 / totalStudents);
+
+            reportRows.add(new Object[]{
+                programmeName,
+                count,
+                String.format("%.2f%%", percent)
+            });
+        }
+
+        return reportRows;
+    }
 }

@@ -17,6 +17,7 @@ import entitiy.Student;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import javax.swing.JOptionPane;
+import utility.IndexHelper;
 
 public class BookingManager {
 
@@ -24,6 +25,7 @@ public class BookingManager {
     private final BPlusTree<String, Facility> facilityTree;
     private final BPlusTree<String, Student> studentTree;
     private BPlusTree<String, SimpleList<String>> userIndex;
+    private BPlusTree<String, SimpleList<String>> facilityIdIndex;
     private BPlusTree<String, SimpleList<String>> facilityDateIndex;
     private int nextIdNum;
 
@@ -63,24 +65,23 @@ public class BookingManager {
         BookingRecord record = new BookingRecord(bookingId, userId, facilityId, date, start, end, "Confirmed");
 
         mainTree.create(bookingId, record);
-        addUserToIndex(userId, bookingId);
+        IndexHelper.addToIndex(userIndex,userId, bookingId);
         String compositeKey = facilityId + "_" + date;
-        addRecordToFacilityDateIndex(compositeKey, bookingId);
+        IndexHelper.addToIndex(facilityDateIndex,compositeKey, bookingId);
+        IndexHelper.addToIndex(facilityIdIndex,facilityId, bookingId);
         return true;
     }
 
     public void cancelBooking(String bookingId) {
         BookingRecord r = mainTree.read(bookingId);
         if (r != null) {
-            SimpleList<String> ids = userIndex.read(r.getUserId());
-            if (ids != null) {
-                ids.remove(bookingId);
-            }
+            IndexHelper.removeFromIndex(userIndex, r.getUserId(), bookingId);
+
             String compositeKey = r.getFacilityId() + "_" + r.getBookingDate();
-            SimpleList<String> facilityIds = facilityDateIndex.read(compositeKey);
-            if (facilityIds != null) {
-                facilityIds.remove(bookingId);
-            }
+            IndexHelper.removeFromIndex(facilityDateIndex, compositeKey, bookingId);
+
+            IndexHelper.removeFromIndex(facilityIdIndex, r.getFacilityId(), bookingId);
+
             mainTree.delete(bookingId);
         }
     }
@@ -242,34 +243,53 @@ public class BookingManager {
     private void rebuildAllIndexes() {
         this.userIndex = new BPlusTree<>(10);
         this.facilityDateIndex = new BPlusTree<>(10);
+        this.facilityIdIndex = new BPlusTree<>(10);
         SimpleList<BookingRecord> all = mainTree.sort();
         for (int i = 0; i < all.size(); i++) {
-            addUserToIndex(all.get(i).getUserId(), all.get(i).getId());
+            BookingRecord r = all.get(i);
+            IndexHelper.addToIndex(userIndex,r.getUserId(), r.getId());
 
-            String compositeKey = all.get(i).getFacilityId() + "_" + all.get(i).getBookingDate();
-            addRecordToFacilityDateIndex(compositeKey, all.get(i).getId());
+            String compositeKey = r.getFacilityId() + "_" + r.getBookingDate();
+            IndexHelper.addToIndex(facilityDateIndex,compositeKey, r.getId());
+
+            IndexHelper.addToIndex(facilityIdIndex,r.getFacilityId(), r.getId());
         }
     }
 
-    private void addUserToIndex(String uId, String bId) {
-        SimpleList<String> ids = userIndex.read(uId);
-        if (ids == null) {
-            ids = new SimpleList<>();
-            userIndex.create(uId, ids);
+    public SimpleList<Object[]> getPopularityReport() {
+        if (facilityIdIndex == null) {
+            return new SimpleList<>();
         }
-        if (!ids.contains(bId)) {
-            ids.add(bId);
-        }
-    }
 
-    private void addRecordToFacilityDateIndex(String uId, String bId) {
-        SimpleList<String> ids = facilityDateIndex.read(uId);
-        if (ids == null) {
-            ids = new SimpleList<>();
-            facilityDateIndex.create(uId, ids);
+        // 1. Get a list of all booked facility IDs and booking records.
+        SimpleList<String> bookedFacilityIds = facilityIdIndex.sortKeys();
+        SimpleList<SimpleList<String>> bookingLists = facilityIdIndex.sort();
+
+        // 2. Calculate total reservations
+        int totalBookings = 0;
+        for (int i = 0; i < bookingLists.size(); i++) {
+            totalBookings += bookingLists.get(i).size();
         }
-        if (!ids.contains(bId)) {
-            ids.add(bId);
+
+        // 3. Build reports：[ID, Name, Count, Percentage]
+        SimpleList<Object[]> reportRows = new SimpleList<>();
+        for (int i = 0; i < bookedFacilityIds.size(); i++) {
+            String fId = bookedFacilityIds.get(i);
+            int count = bookingLists.get(i).size();
+
+            // Collaborate with FacilityTree to get a name
+            Facility f = facilityTree.read(fId);
+            String fName = (f != null) ? f.getName() : "Unknown Facility";
+
+            double percent = (totalBookings == 0) ? 0 : (count * 100.0 / totalBookings);
+
+            reportRows.add(new Object[]{
+                fId,
+                fName,
+                count,
+                String.format("%.2f%%", percent)
+            });
         }
+        return reportRows;
     }
 }

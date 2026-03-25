@@ -27,14 +27,26 @@ public class FacilityPanel extends JPanel {
     private final JButton btnSearch;
     private final JButton btnReset;
 
-    // ID, Name, Location, Venue, Type, Op Time, Capacity, Status
-    private final String[] FACILITY_COLS = {"ID*", "Name*", "Location", "Venue", "Type", "Op Time*(HH:mm)", "Capacity", "Status"};
+    // --- Report component ---
+    private DefaultTableModel reportModel;
+    private JLabel lblTotalFacilities;
+    private final boolean isStaff;
+
+    private final String[] FACILITY_COLS = {"ID*", "Name*", "Location", "Venue", "Type", "Op Time*(HH:mm)", "Capacity*", "Status"};
 
     public FacilityPanel(FacilityManager facilityManager, String userRole) {
-        setLayout(new BorderLayout());
         this.facilityManager = facilityManager;
+        this.isStaff = "Staff".equalsIgnoreCase(userRole);
+        setLayout(new BorderLayout());
 
-        // --- 1. Table initialization ---
+        // 1. Initialize search component
+        String[] searchOptions = {"Name", "ID", "Type", "Status"};
+        comboSearchType = new JComboBox<>(searchOptions);
+        txtSearch = new JTextField(15);
+        btnSearch = new JButton("🔍 Search");
+        btnReset = new JButton("🔄 Reset");
+
+        // 2. Initialize table
         facilityModel = new DefaultTableModel(FACILITY_COLS, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -44,14 +56,23 @@ public class FacilityPanel extends JPanel {
         facilityTable = new JTable(facilityModel);
         facilityTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 
-        // --- 2. Initialize the search bar (top)---
-        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        String[] searchOptions = {"Name", "ID", "Type", "Status"};
-        comboSearchType = new JComboBox<>(searchOptions);
-        txtSearch = new JTextField(15);
-        btnSearch = new JButton("🔍 Search");
-        btnReset = new JButton("🔄 Reset");
+        // 3. Building a Tab Container
+        JTabbedPane tabbedPane = new JTabbedPane();
+        tabbedPane.addTab("🏟️ Facility Management", createManagementTab(userRole));
 
+        if (isStaff) {
+            tabbedPane.addTab("📊 Venue Type Report", createReportTab());
+        }
+
+        add(tabbedPane, BorderLayout.CENTER);
+        refreshData();
+    }
+
+    private JPanel createManagementTab(String userRole) {
+        JPanel panel = new JPanel(new BorderLayout());
+
+        // Top search bar
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         searchPanel.add(new JLabel("Search By:"));
         searchPanel.add(comboSearchType);
         searchPanel.add(new JLabel("Keyword:"));
@@ -59,7 +80,6 @@ public class FacilityPanel extends JPanel {
         searchPanel.add(btnSearch);
         searchPanel.add(btnReset);
 
-        // --- 3. Bind search and reset events ---
         btnSearch.addActionListener(e -> performSearch());
         txtSearch.addActionListener(e -> performSearch());
         btnReset.addActionListener(e -> {
@@ -67,8 +87,11 @@ public class FacilityPanel extends JPanel {
             refreshData();
         });
 
-        // --- 4. Operation button panel (bottom) ---
-        if ("Staff".equals(userRole)) {
+        panel.add(searchPanel, BorderLayout.NORTH);
+        panel.add(new JScrollPane(facilityTable), BorderLayout.CENTER);
+
+        // Staff button at the bottom
+        if (isStaff) {
             JPanel bp = new JPanel();
             JButton addB = new JButton("Add Facility");
             JButton upB = new JButton("Update Facility");
@@ -81,7 +104,7 @@ public class FacilityPanel extends JPanel {
                     String id = (String) facilityTable.getValueAt(r, 0);
                     showEntryDialog(facilityManager.readFacility(id));
                 } else {
-                    JOptionPane.showMessageDialog(this, "Select a facility to update!");
+                    JOptionPane.showMessageDialog(this, "Select a facility!");
                 }
             });
             delB.addActionListener(e -> deleteLogic());
@@ -89,13 +112,44 @@ public class FacilityPanel extends JPanel {
             bp.add(addB);
             bp.add(upB);
             bp.add(delB);
-            add(bp, BorderLayout.SOUTH);
+            panel.add(bp, BorderLayout.SOUTH);
         }
-        // --- 5. Assembly layout ---
-        add(searchPanel, BorderLayout.NORTH);
-        add(new JScrollPane(facilityTable), BorderLayout.CENTER);
+        return panel;
+    }
 
-        refreshData();
+    private JPanel createReportTab() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        lblTotalFacilities = new JLabel("Total Facilities: 0");
+        lblTotalFacilities.setFont(new Font("SansSerif", Font.BOLD, 18));
+        panel.add(lblTotalFacilities, BorderLayout.NORTH);
+
+        String[] cols = {"Venue Type", "Count", "Percentage"};
+        reportModel = new DefaultTableModel(cols, 0);
+        JTable reportTable = new JTable(reportModel);
+
+        panel.add(new JScrollPane(reportTable), BorderLayout.CENTER);
+        return panel;
+    }
+
+    public void refreshData() {
+        populateTable(facilityManager.getAllFacilities());
+        if (isStaff && reportModel != null) {
+            updateReport();
+        }
+    }
+
+    private void updateReport() {
+        reportModel.setRowCount(0);
+        SimpleList<Object[]> data = facilityManager.getVenueTypeReport();
+        int total = 0;
+        for (int i = 0; i < data.size(); i++) {
+            Object[] row = data.get(i);
+            reportModel.addRow(row);
+            total += (int) row[1];
+        }
+        lblTotalFacilities.setText("Total Campus Facilities: " + total);
     }
 
     private void populateTable(SimpleList<Facility> list) {
@@ -112,9 +166,7 @@ public class FacilityPanel extends JPanel {
         }
     }
 
-    public void refreshData() {
-        populateTable(facilityManager.getAllFacilities());
-    }
+    
 
     private void performSearch() {
         String keyword = txtSearch.getText().trim();
@@ -201,7 +253,7 @@ public class FacilityPanel extends JPanel {
                 );
 
                 if (exist != null) {
-                    facilityManager.updateFacility(f); 
+                    facilityManager.updateFacility(f);
                     JOptionPane.showMessageDialog(this, "Facility updated successfully!");
                 } else {
                     facilityManager.createFacility(f);
@@ -236,4 +288,5 @@ public class FacilityPanel extends JPanel {
                 "";
         };
     }
+
 }

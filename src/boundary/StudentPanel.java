@@ -18,22 +18,42 @@ import java.awt.*;
 public class StudentPanel extends JPanel {
 
     private StudentManager studentManager;
-    private final DefaultTableModel studentModel;
+    private DefaultTableModel studentModel;
     private JTable studentTable;
 
     // --- Search component ---
-    private final JComboBox<String> comboSearchType;
-    private final JTextField txtSearch;
-    private final JButton btnSearch;
-    private final JButton btnReset;
+    private JComboBox<String> comboSearchType;
+    private JTextField txtSearch;
+    private JButton btnSearch;
+    private JButton btnReset;
+
+    // --- Report component (New) ---
+    private JLabel lblTotalStudents;
+    private DefaultTableModel reportModel;
 
     private final String[] STUDENT_COLS = {"ID*", "Name*", "Password*", "Gender", "MykadNO", "Email", "Programme", "Address", "ContactNo"};
 
     public StudentPanel(StudentManager studentManager) {
-        setLayout(new BorderLayout());
         this.studentManager = studentManager;
+        setLayout(new BorderLayout());
 
-        // --- 1. Table initialization ---
+        JTabbedPane tabbedPane = new JTabbedPane();
+
+        // Tab 1: Management function
+        tabbedPane.addTab("👤 Student Management", createManagementTab());
+
+        // Tab 2: Report function
+        tabbedPane.addTab("📊 Statistics Report", createReportTab());
+
+        add(tabbedPane, BorderLayout.CENTER);
+
+        refreshData();
+    }
+
+    private JPanel createManagementTab() {
+        JPanel mainPanel = new JPanel(new BorderLayout());
+
+        // 1. Table
         studentModel = new DefaultTableModel(STUDENT_COLS, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -43,7 +63,7 @@ public class StudentPanel extends JPanel {
         studentTable = new JTable(studentModel);
         studentTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 
-        // --- 2. Initialize the search bar (Top) ---
+        // 2. Search Bar
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         String[] searchOptions = {"Name", "ID", "Programme"};
         comboSearchType = new JComboBox<>(searchOptions);
@@ -58,15 +78,13 @@ public class StudentPanel extends JPanel {
         searchPanel.add(btnSearch);
         searchPanel.add(btnReset);
 
-        // --- 3. Bind search and reset events ---
         btnSearch.addActionListener(e -> performSearch());
-        txtSearch.addActionListener(e -> performSearch()); 
         btnReset.addActionListener(e -> {
             txtSearch.setText("");
             refreshData();
         });
 
-        // --- 4. Operation button panel (bottom) ---
+        // 3. Bottom Buttons
         JPanel bp = new JPanel();
         JButton addB = new JButton("Add Student");
         JButton upB = new JButton("Update Student");
@@ -88,14 +106,63 @@ public class StudentPanel extends JPanel {
         bp.add(upB);
         bp.add(delB);
 
-        // --- 5. Assembly layout ---
-        add(searchPanel, BorderLayout.NORTH);
-        add(new JScrollPane(studentTable), BorderLayout.CENTER);
-        add(bp, BorderLayout.SOUTH);
+        mainPanel.add(searchPanel, BorderLayout.NORTH);
+        mainPanel.add(new JScrollPane(studentTable), BorderLayout.CENTER);
+        mainPanel.add(bp, BorderLayout.SOUTH);
 
-        refreshData();
+        return mainPanel;
     }
 
+    // --- Report Tab ---
+    private JPanel createReportTab() {
+        JPanel reportPanel = new JPanel(new BorderLayout(10, 10));
+        reportPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        // Top total statistics
+        lblTotalStudents = new JLabel("Total Students: 0");
+        lblTotalStudents.setFont(new Font("SansSerif", Font.BOLD, 20));
+        reportPanel.add(lblTotalStudents, BorderLayout.NORTH);
+
+        // Programme Distribution Table
+        String[] reportCols = {"Programme", "Student Count", "Percentage"};
+        reportModel = new DefaultTableModel(reportCols, 0);
+        JTable reportTable = new JTable(reportModel);
+
+        reportPanel.add(new JScrollPane(reportTable), BorderLayout.CENTER);
+
+        return reportPanel;
+    }
+
+    // 修改 refreshData，让它同时刷新表格和报表
+    public void refreshData() {
+        SimpleList<Student> all = studentManager.getAllStudents();
+        populateTable(all);
+        updateReport(all);
+    }
+
+    private void updateReport(SimpleList<Student> all) {
+        if (all == null) {
+            return;
+        }
+
+        lblTotalStudents.setText("Total Registered Students: " + all.size());
+        reportModel.setRowCount(0);
+
+        SimpleList<Object[]> reportData = studentManager.getProgrammeReport();
+
+        // 4. 循环将每一行数据添加到表格模型中
+        if (reportData != null) {
+            for (int i = 0; i < reportData.size(); i++) {
+                // 拿到每一行 [String, int, String]
+                Object[] row = reportData.get(i);
+
+                // 直接添加到 UI 的 tableModel 里
+                reportModel.addRow(row);
+            }
+        }
+    }
+
+    // ... 这里保留你原有的 populateTable, performSearch, deleteLogic, showEntryDialog, getFieldValue 方法 ...
     private void populateTable(SimpleList<Student> list) {
         studentModel.setRowCount(0);
         if (list == null) {
@@ -109,10 +176,6 @@ public class StudentPanel extends JPanel {
                 s.getAddress(), s.getContactNo()
             });
         }
-    }
-
-    public void refreshData() {
-        populateTable(studentManager.getAllStudents());
     }
 
     private void performSearch() {
@@ -164,7 +227,7 @@ public class StudentPanel extends JPanel {
             // automatic ID logic
             String val = (exist == null) ? "" : getFieldValue(exist, i);
             if (exist == null && i == 0) {
-                val = studentManager.generateNextId(); 
+                val = studentManager.generateNextId();
             }
 
             tfs[i] = new JTextField(val);
@@ -225,4 +288,5 @@ public class StudentPanel extends JPanel {
                 "";
         };
     }
+
 }

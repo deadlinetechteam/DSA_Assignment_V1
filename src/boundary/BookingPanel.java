@@ -8,7 +8,6 @@ package boundary;
  *
  * @author asus-z
  */
-import adt.BPlusTree;
 import adt.BPlusTree.SimpleList;
 import control.BookingManager;
 import control.FacilityManager;
@@ -20,7 +19,6 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Date;
 
 public class BookingPanel extends JPanel {
 
@@ -32,30 +30,27 @@ public class BookingPanel extends JPanel {
 
     private String currentUserId;
     private String userRole;
-    private JPanel searchBar;
+    private final boolean isStaff; 
+
+    // --- Search & Report components ---
     private JTextField txtSearchUser;
+    private DefaultTableModel reportModel;
+    private JLabel lblTotalBookings;
 
     private final String[] BOOKING_COLS = {"Booking ID", "User ID", "Facility ID", "Date", "Start Time", "End Time", "Status"};
 
     public BookingPanel(BookingManager bookingManager, FacilityManager facilityManager, String userID, String userRole) {
-        setLayout(new BorderLayout());
         this.bookingManager = bookingManager;
         this.facilityManager = facilityManager;
         this.currentUserId = userID;
         this.userRole = userRole;
+        this.isStaff = "Staff".equals(userRole);
 
-        if ("Staff".equals(userRole)) {
-            searchBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            txtSearchUser = new JTextField(15);
-            JButton btnSearch = new JButton("🔍 Search Student ID");
+        setLayout(new BorderLayout());
 
-            btnSearch.addActionListener(e -> performSearch());
-            searchBar.add(new JLabel("Search Booking by Student ID:"));
-            searchBar.add(txtSearchUser);
-            searchBar.add(btnSearch);
-            add(searchBar, BorderLayout.NORTH);
-        }
-        // --- 1. Table initialization (administration view) ---
+        JTabbedPane tabbedPane = new JTabbedPane();
+
+        // 1. Initialize table model
         bookingModel = new DefaultTableModel(BOOKING_COLS, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -64,7 +59,35 @@ public class BookingPanel extends JPanel {
         };
         bookingTable = new JTable(bookingModel);
 
-        // --- 2. Operation buttons ---
+        tabbedPane.addTab("🕒 Booking Management", createManagementTab());
+
+        if (isStaff) {
+            tabbedPane.addTab("📈 Popularity Report", createReportTab());
+        }
+
+        add(tabbedPane, BorderLayout.CENTER);
+        refreshData();
+    }
+
+    private JPanel createManagementTab() {
+        JPanel panel = new JPanel(new BorderLayout());
+
+        // Search bar logic
+        if (isStaff) {
+            JPanel searchBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            txtSearchUser = new JTextField(15);
+            JButton btnSearch = new JButton("🔍 Search Student ID");
+            btnSearch.addActionListener(e -> performSearch());
+
+            searchBar.add(new JLabel("Search Booking by Student ID:"));
+            searchBar.add(txtSearchUser);
+            searchBar.add(btnSearch);
+            panel.add(searchBar, BorderLayout.NORTH);
+        }
+
+        panel.add(new JScrollPane(bookingTable), BorderLayout.CENTER);
+
+        // Operation buttons
         JPanel bp = new JPanel();
         JButton btnNewBooking = new JButton("➕ New Booking");
         JButton btnCancel = new JButton("❌ Cancel Booking");
@@ -77,21 +100,56 @@ public class BookingPanel extends JPanel {
         bp.add(btnNewBooking);
         bp.add(btnCancel);
         bp.add(btnRefresh);
+        panel.add(bp, BorderLayout.SOUTH);
 
-        add(new JScrollPane(bookingTable), BorderLayout.CENTER);
-        add(bp, BorderLayout.SOUTH);
+        return panel;
+    }
 
-        refreshData();
+    // --- Tab 2: Facility report page ---
+    private JPanel createReportTab() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        lblTotalBookings = new JLabel("Total Bookings: 0");
+        lblTotalBookings.setFont(new Font("SansSerif", Font.BOLD, 18));
+        panel.add(lblTotalBookings, BorderLayout.NORTH);
+
+        String[] cols = {"Facility ID", "Facility Name", "Times Booked", "Percentage"};
+        reportModel = new DefaultTableModel(cols, 0);
+        JTable reportTable = new JTable(reportModel);
+
+        panel.add(new JScrollPane(reportTable), BorderLayout.CENTER);
+        return panel;
     }
 
     public void refreshData() {
         bookingModel.setRowCount(0);
-        if ("Staff".equals(userRole)) {
+        if (isStaff) {
             populateTable(bookingManager.getAllBookings());
         } else {
             populateTable(bookingManager.getBookingsByUser(currentUserId));
         }
+
+        if (isStaff && reportModel != null) {
+            updateReport();
+        }
     }
+
+    private void updateReport() {
+        reportModel.setRowCount(0);
+        SimpleList<Object[]> data = bookingManager.getPopularityReport();
+        int total = 0;
+        if (data != null) {
+            for (int i = 0; i < data.size(); i++) {
+                Object[] row = data.get(i);
+                reportModel.addRow(row);
+                total += (int) row[2]; 
+            }
+        }
+        lblTotalBookings.setText("Total Facility Reservations: " + total);
+    }
+
+
 
     private void showBookingDialog() {
         // ---Step 1: Preview Selection Window ---
@@ -170,7 +228,7 @@ public class BookingPanel extends JPanel {
         m += 30;
         if (m >= 60) {
             h++;
-            m = 0;
+            m = m - 60;
         }
         return String.format("%02d:%02d", h, m);
     }
@@ -279,7 +337,7 @@ public class BookingPanel extends JPanel {
         populateTable(results);
     }
 
-    private void populateTable(BPlusTree.SimpleList<BookingRecord> list) {
+    private void populateTable(SimpleList<BookingRecord> list) {
         bookingModel.setRowCount(0);
         if (list == null) {
             return;

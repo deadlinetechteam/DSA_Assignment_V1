@@ -421,6 +421,24 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
         return result;
     }
 
+    public SimpleList<K> sortKeys() {
+        SimpleList<K> result = new SimpleList<>();
+        Node<K, V> curr = root;
+        // 1. Find the leftmost leaf node
+        while (curr instanceof InternalNode) {
+            curr = ((InternalNode<K, V>) curr).children[0];
+        }
+        LeafNode<K, V> leaf = (LeafNode<K, V>) curr;
+        // 2. Traversing doubly linked list
+        while (leaf != null) {
+            for (int i = 0; i < leaf.currentKeyCount; i++) {
+                result.add(leaf.keys[i]); 
+            }
+            leaf = leaf.next;
+        }
+        return result;
+    }
+
     // Queue，use in printTree
     private static class SimpleQueue<T> {
 

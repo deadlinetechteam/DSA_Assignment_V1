@@ -11,6 +11,7 @@ package control;
 import entitiy.Staff;
 import adt.BPlusTree;
 import adt.BPlusTree.SimpleList;
+import utility.IndexHelper;
 
 public class StaffManager {
 
@@ -40,7 +41,7 @@ public class StaffManager {
 
     public void createStaff(Staff newStaff) {
         mainTree.create(newStaff.getId(), newStaff);
-        addNameToIndex(newStaff.getName(), newStaff.getId());
+        IndexHelper.addToIndex(nameIndex, newStaff.getName(), newStaff.getId());
     }
 
     public Staff readStaff(String id) {
@@ -58,7 +59,7 @@ public class StaffManager {
                         nameIndex.delete(oldStaff.getName());
                     }
                 }
-                addNameToIndex(updatedStaff.getName(), updatedStaff.getId());
+                IndexHelper.addToIndex(nameIndex, updatedStaff.getName(), updatedStaff.getId());
             }
         }
         mainTree.update(updatedStaff.getId(), updatedStaff);
@@ -67,13 +68,8 @@ public class StaffManager {
     public void deleteStaff(String id) {
         Staff s = mainTree.read(id);
         if (s != null) {
-            SimpleList<String> ids = nameIndex.read(s.getName());
-            if (ids != null) {
-                ids.remove(id);
-                if (ids.size() == 0) {
-                    nameIndex.delete(s.getName());
-                }
-            }
+
+            IndexHelper.removeFromIndex(nameIndex, s.getName(), id);
             mainTree.delete(id);
         }
     }
@@ -96,7 +92,8 @@ public class StaffManager {
                 if (currentNum > max) {
                     max = currentNum;
                 }
-            } catch (NumberFormatException e) { }
+            } catch (NumberFormatException e) {
+            }
         }
         return max;
     }
@@ -112,18 +109,7 @@ public class StaffManager {
 
         for (int i = 0; i < allStaffs.size(); i++) {
             Staff s = allStaffs.get(i);
-            addNameToIndex(s.getName(), s.getId());
-        }
-    }
-
-    private void addNameToIndex(String name, String id) {
-        SimpleList<String> ids = nameIndex.read(name);
-        if (ids == null) {
-            ids = new SimpleList<>();
-            nameIndex.create(name, ids);
-        }
-        if (!ids.contains(id)) {
-            ids.add(id);
+            IndexHelper.addToIndex(nameIndex, s.getName(), s.getId());
         }
     }
 
@@ -160,5 +146,5 @@ public class StaffManager {
         }
         return results;
     }
-    
+
 }

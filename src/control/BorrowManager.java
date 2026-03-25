@@ -15,6 +15,7 @@ import adt.BPlusTree;
 import adt.BPlusTree.SimpleList;
 import java.time.LocalDate;
 import javax.swing.JOptionPane;
+import utility.IndexHelper;
 
 public class BorrowManager {
 
@@ -22,7 +23,8 @@ public class BorrowManager {
     private final BPlusTree<String, Student> studentTree;
     private final BPlusTree<String, Book> bookTree;
 
-    private BPlusTree<String, SimpleList<String>> userIndex;
+    private BPlusTree<String, SimpleList<String>> studentIndex;
+    private BPlusTree<String, SimpleList<String>> statusIndex;
 
     public BorrowManager(BPlusTree<String, Book> sharedBookTree, BPlusTree<String, Student> studentTree) {
         this.bookTree = sharedBookTree;
@@ -36,7 +38,7 @@ public class BorrowManager {
             this.mainTree = new BPlusTree<>(10, path);
         }
 
-        rebuildIndex();
+        rebuildAllIndex();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("[Auto-Save] Saving borrow record data to disk...");
@@ -76,13 +78,14 @@ public class BorrowManager {
         );
 
         mainTree.create(txId, record);
-        addRecordToIndex(studentId, txId);
+        IndexHelper.addToIndex(statusIndex, record.getStatus(), record.getTransactionId());
+        IndexHelper.addToIndex(studentIndex, record.getStudentId(), record.getTransactionId());
         return true;
     }
 
     public int getActiveBorrowCount(String studentId) {
         int count = 0;
-        SimpleList<String> txIds = userIndex.read(studentId);
+        SimpleList<String> txIds = studentIndex.read(studentId);
         if (txIds == null) {
             return 0;
         }
@@ -103,7 +106,7 @@ public class BorrowManager {
 
     public SimpleList<BorrowRecord> getRecordsByStudent(String studentId) {
         SimpleList<BorrowRecord> results = new SimpleList<>();
-        SimpleList<String> txIds = userIndex.read(studentId);
+        SimpleList<String> txIds = studentIndex.read(studentId);
         if (txIds != null) {
             for (int i = 0; i < txIds.size(); i++) {
                 BorrowRecord r = mainTree.read(txIds.get(i));
@@ -124,6 +127,9 @@ public class BorrowManager {
             return false;
         }
 
+        String oldStatus = r.getStatus();
+        IndexHelper.removeFromIndex(statusIndex, oldStatus, txId);
+
         // 3.Since the record is valid, we can then retrieve the bookId from the record.
         Book book = bookTree.read(r.getBookId());
 
@@ -137,6 +143,24 @@ public class BorrowManager {
         r.setStatus("Returned");
         mainTree.update(txId, r);
 
+        IndexHelper.addToIndex(statusIndex, "Returned", txId);
+        return true;
+    }
+
+    public boolean markAsOverdue(String txId) {
+        BorrowRecord r = mainTree.read(txId);
+
+        if (r == null || !"On Loan".equalsIgnoreCase(r.getStatus())) {
+            return false;
+        }
+
+        IndexHelper.removeFromIndex(statusIndex, r.getStatus(), txId);
+
+        r.setStatus("Overdue");
+        mainTree.update(txId, r);
+
+        IndexHelper.addToIndex(statusIndex, "Overdue", txId);
+
         return true;
     }
 
@@ -144,24 +168,45 @@ public class BorrowManager {
         return mainTree.sort();
     }
 
-    private void rebuildIndex() {
-        this.userIndex = new BPlusTree<>(10);
+    private void rebuildAllIndex() {
+        this.studentIndex = new BPlusTree<>(10);
+        this.statusIndex = new BPlusTree<>(10);
         SimpleList<BorrowRecord> all = mainTree.sort();
         for (int i = 0; i < all.size(); i++) {
             BorrowRecord r = all.get(i);
-            addRecordToIndex(r.getStudentId(), r.getTransactionId());
+            IndexHelper.addToIndex(statusIndex, r.getStatus(), r.getTransactionId());
+            IndexHelper.addToIndex(studentIndex, r.getStudentId(), r.getTransactionId());
         }
     }
 
-    private void addRecordToIndex(String studentId, String txId) {
-        SimpleList<String> txIds = userIndex.read(studentId);
-        if (txIds == null) {
-            txIds = new SimpleList<>();
-            userIndex.create(studentId, txIds);
-        }
-        if (!txIds.contains(txId)) {
-            txIds.add(txId);
-        }
-    }
 
+    public SimpleList<Object[]> getStatusReport() {
+        if (statusIndex == null) {
+            return new SimpleList<>();
+        }
+
+        SimpleList<String> allStatuses = statusIndex.sortKeys();
+        SimpleList<SimpleList<String>> allValueLists = statusIndex.sort();
+
+        // Calculate the total number of records
+        int totalRecords = 0;
+        for (int i = 0; i < allValueLists.size(); i++) {
+            totalRecords += allValueLists.get(i).size();
+        }
+
+        // Encapsulation results [Status, Quantity, Percentage]
+        SimpleList<Object[]> reportRows = new SimpleList<>();
+        for (int i = 0; i < allStatuses.size(); i++) {
+            String status = allStatuses.get(i);
+            int count = allValueLists.get(i).size();
+            double percent = (totalRecords == 0) ? 0 : (count * 100.0 / totalRecords);
+
+            reportRows.add(new Object[]{
+                status,
+                count,
+                String.format("%.2f%%", percent)
+            });
+        }
+        return reportRows;
+    }
 }

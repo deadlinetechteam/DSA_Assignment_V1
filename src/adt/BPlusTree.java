@@ -13,7 +13,7 @@ import java.io.Serializable;
  * @param <K>
  * @param <V>
  */
-public class BPlusTree<K extends Comparable<K> & Serializable, V extends Serializable> implements Serializable {
+public class BPlusTree<K extends Comparable<K> & Serializable, V extends Serializable> implements Serializable,BPlusTreeInterface<K, V>{
 
     private Node<K, V> root;
     private int M = 3;
@@ -65,6 +65,7 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
     }
 
     // --- (CRUD) ---
+    @Override
     public void create(K key, V value) {
         LeafNode<K, V> leaf = findLeaf(root, key);
         int idx = binarySearch(leaf.keys, leaf.currentKeyCount, key);
@@ -154,6 +155,7 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
         }
     }
 
+    @Override
     public V read(K key) {
         if (key == null) {
             return null;
@@ -190,10 +192,12 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
         return findLeaf(internal.children[childIdx], key);
     }
 
+    @Override
     public void update(K key, V value) {
         create(key, value); // In B+ tree，operator Update is same with Create
     }
 
+    @Override
     public boolean delete(K key) {
         LeafNode<K, V> leaf = findLeaf(root, key);
         int idx = binarySearch(leaf.keys, leaf.currentKeyCount, key);
@@ -384,6 +388,7 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
         }
     }
 
+    @Override
     public SimpleList<V> searchRange(K low, K high) {
         SimpleList<V> result = new SimpleList<>();
         LeafNode<K, V> curr = findLeaf(root, low);
@@ -403,6 +408,7 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
         return result;
     }
 
+    @Override
     public SimpleList<V> sort() {
         SimpleList<V> result = new SimpleList<>();
         // Find the leftmost leaf node

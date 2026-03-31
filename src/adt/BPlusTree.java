@@ -13,7 +13,7 @@ import java.io.Serializable;
  * @param <K>
  * @param <V>
  */
-public class BPlusTree<K extends Comparable<K> & Serializable, V extends Serializable> implements Serializable,BPlusTreeInterface<K, V>{
+public class BPlusTree<K extends Comparable<K> & Serializable, V extends Serializable> implements Serializable, BPlusTreeInterface<K, V> {
 
     private Node<K, V> root;
     private int M = 3;
@@ -68,6 +68,10 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
     @Override
     public void create(K key, V value) {
         LeafNode<K, V> leaf = findLeaf(root, key);
+        
+        if (this.root == null) {
+            this.root = new LeafNode<>(M);
+        }
         int idx = binarySearch(leaf.keys, leaf.currentKeyCount, key);
 
         if (idx >= 0) {
@@ -160,12 +164,17 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
         if (key == null) {
             return null;
         }
+
         LeafNode<K, V> leaf = findLeaf(root, key);
+        if (leaf == null) {
+            return null;
+        }
         int idx = binarySearch(leaf.keys, leaf.currentKeyCount, key);
         return (idx >= 0) ? leaf.values[idx] : null;
     }
 
     private int binarySearch(K[] arr, int count, K key) {
+
         int low = 0, high = count - 1;
         while (low <= high) {
             int mid = (low + high) >>> 1;
@@ -182,6 +191,10 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
     }
 
     private LeafNode<K, V> findLeaf(Node<K, V> node, K key) {
+        if (node == null) {
+            return null;
+        }
+
         if (node instanceof LeafNode) {
             return (LeafNode<K, V>) node;
         }
@@ -438,7 +451,7 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
         // 2. Traversing doubly linked list
         while (leaf != null) {
             for (int i = 0; i < leaf.currentKeyCount; i++) {
-                result.add(leaf.keys[i]); 
+                result.add(leaf.keys[i]);
             }
             leaf = leaf.next;
         }

@@ -67,11 +67,12 @@ public class BPlusTree<K extends Comparable<K> & Serializable, V extends Seriali
     // --- (CRUD) ---
     @Override
     public void create(K key, V value) {
-        LeafNode<K, V> leaf = findLeaf(root, key);
-        
         if (this.root == null) {
             this.root = new LeafNode<>(M);
         }
+
+        LeafNode<K, V> leaf = findLeaf(root, key);
+
         int idx = binarySearch(leaf.keys, leaf.currentKeyCount, key);
 
         if (idx >= 0) {
